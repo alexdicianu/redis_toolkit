@@ -1,0 +1,18 @@
+version: '3'
+services:
+  redis:
+    build: db
+    ports:
+     - "6379:6379"
+  injector:
+    build: injector
+    depends_on:
+      - "redis"
+    environment:
+      REDIS_CLI: "redis-cli -h 127.0.0.1"
+  monitor:
+    build: monitor
+    depends_on:
+      - "redis"
+    environment:
+      DISPLAY_LIMIT: 50

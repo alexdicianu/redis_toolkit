@@ -1,0 +1,4 @@
+docker run -it -p 6379:6379 dicix/redis
+
+docker build -t dicix/redis_monitor monitor/
+docker run -it --name redis_monitor --network=redismonitor_default dicix/redis_monitor
