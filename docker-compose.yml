@@ -9,10 +9,10 @@ services:
     depends_on:
       - "redis"
     environment:
-      REDIS_CLI: "redis-cli -h 127.0.0.1"
-  monitor:
-    build: monitor
-    depends_on:
-      - "redis"
-    environment:
-      DISPLAY_LIMIT: 50
+      #REDIS_CLI: "redis-cli connection string" # testing site
+  #monitor:
+  #  build: monitor
+  #  depends_on:
+  #    - "redis"
+  #  environment:
+  #    DISPLAY_LIMIT: 10
