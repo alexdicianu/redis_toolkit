@@ -13,11 +13,12 @@ RUN apt-get install -y \
     && apt-get clean
 
 RUN pip install redis
+RUN pip install python-levenshtein
 
 ADD run.sh /
 RUN chmod 770 /run.sh
 
-ADD redis-monitor.py /
-RUN chmod 770 /redis-monitor.py
+ADD scripts/report.py /scripts/
+RUN chmod 770 /scripts/report.py
 
 CMD [ "/run.sh" ]

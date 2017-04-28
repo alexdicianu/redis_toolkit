@@ -4,9 +4,6 @@ import sys
 import redis
 from collections import defaultdict, Counter
 
-# Only insterested in GET/SET for now.
-operations = ['GET', 'SET']
-
 def redis_get():
     return [
         'GET',
@@ -32,7 +29,8 @@ def redis_set():
     ]
     
 if __name__ == '__main__':
-    r = redis.StrictRedis(host='redis', port=6379, db=0)
+    pool = redis.ConnectionPool(host='redis', port=6379, db=0)
+    r = redis.Redis(connection_pool=pool)
     
     for line in sys.stdin:
         try:
