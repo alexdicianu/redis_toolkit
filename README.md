@@ -18,7 +18,7 @@ The output shows the key hitrate, calculated using the following formula `hitrat
 MONITOR is a debugging command that streams back every command processed by the Redis server. Running this on a production database comes with a performance cost that's hard to estimate. Use it with caution on production servers.
 
 ## Generate the report
-There are 2 types of reports that can be generated: a prefix-only and a full report for all your keys. The default is the full report. You can get the DOCKER_NETWORK by running `docker netwkr ls` but it's usualy `redismonitor_default`.
+There are 2 types of reports that can be generated: a prefix-only and a full report for all your keys. The default is the full report. You can get the DOCKER_NETWORK by running `docker network ls` but it's usualy `redismonitor_default`.
 
 ### Prefix only report
 
