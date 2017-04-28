@@ -74,7 +74,7 @@ pantheon-redis:cache_path:checkout/261156*                                      
 There are a couple of options that can be passed to the report generator. They are passed via docker's -e paramenter (environment) like so: `-e "OPTIONS=--prefix_only"`. They are described below. The LEVENSHTEIN_DISTANCE parameter is used for calculating the degree of similarity of these groups using the Levenshtein distance. You can set any value between 0 and 1:
 
 * values close to 0 will only try to create many groups with very little differences between them 
-* values close to 1 will try to create bigger buckets with many difference between strings but a smaller common prefix
+* values close to 1 will try to create bigger buckets with many differences between strings but a smaller common prefix
 
 ```
 usage: report.py [-h] [-p] [-l LEVENSHTEIN_DISTANCE]
