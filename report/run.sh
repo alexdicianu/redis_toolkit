@@ -1,3 +1,2 @@
 #!/bin/bash
-
-eval $(echo "python /scripts/report.py $OPTIONS")
+eval $(echo "python report.py $OPTIONS")

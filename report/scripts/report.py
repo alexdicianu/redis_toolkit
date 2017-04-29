@@ -1,10 +1,9 @@
-import time
 import sys
 import redis
-import itertools
-import argparse
-from operator import itemgetter
+
 from collections import defaultdict, Counter
+from argparse import ArgumentParser, RawTextHelpFormatter
+from textwrap import dedent
 
 import Levenshtein
 
@@ -41,7 +40,7 @@ class Report(object):
     def get_keys(self, key_name):
         return self.redis.keys(key_name)
 
-    def get_matching_groups(self, keys, levenshtein_distance=0.5):
+    def get_matching_groups(self, keys, levenshtein_distance=0.5, hide_progress_bar=False):
         "Given a list of keys, group them together based on their similarity using the Levenshtein distance"
 
         groups      = defaultdict(dict)
@@ -51,20 +50,23 @@ class Report(object):
 
         i = 0
         n = len(keys)
+
+        loops = 0
         
         for i in range(0, n):
             for j in range(i+1, n):
 
+                loops += 1
+
                 # Don't process keys that have already been assigned in groups.
-                if processed[keys[j]]: 
-                    continue
+                if processed[keys[j]]: continue
 
                 l_d = float(Levenshtein.distance(keys[i], keys[j]))
                 
                 min_str = min([keys[i], keys[j]], key=len)
                 min_len = len(min_str)
 
-                # 50% minimum string length compared to the total Levenshtein distance.
+                # Smallest string length compared to the total Levenshtein distance.
                 if min_len * levenshtein_distance >= l_d:
                     prefix = self.common_prefix([keys[i], keys[j]])
                     
@@ -73,6 +75,10 @@ class Report(object):
                     
                     processed[keys[j]] = True
                 j+= 1
+
+            # For long running reports show some progress feedback.
+            if not hide_progress_bar: progress(i, n)
+
             i += 1
 
         return groups
@@ -121,21 +127,32 @@ def print_report_header():
     print '{:<10}'.format('Hit Rate (%)')
     print '{:<130}'.format('-' * 130)
 
-if __name__ == '__main__':
+def progress(count, total, suffix=''):
+    """Generic progressbar for showing group matching progress."""
 
-    parser = argparse.ArgumentParser(description='Generates a hit rate report from the Redis keys')
-    parser.add_argument('-p','--prefix_only', action='store_true', help='Show individual keys', required=False)
-    parser.add_argument('-l','--levenshtein_distance', help='Manually calibrate the Levenshtein distance in percentage of smallest string. Default is 0.5', required=False)
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
 
-    args = vars(parser.parse_args())
+    percents = round(100.0 * count / float(total), 1)
+    bar = '#' * filled_len + '_' * (bar_len - filled_len)
 
-    detailed_report = True
+    sys.stdout.write('Crunching numbers [%s] %s%s %s\r' % (bar, percents, '%', suffix))
+    sys.stdout.flush()
+
+def main(args):
+    """Main script function where the report gets printed to stdout."""
+
+    prefix_only = False
     if args['prefix_only']:
-        detailed_report = False
+        prefix_only = True
 
     levenshtein_distance = 0.5
     if args['levenshtein_distance']:
         levenshtein_distance = args['levenshtein_distance']
+
+    hide_progress_bar = False
+    if args['hide_progress_bar']:
+        hide_progress_bar = True
 
     report  = Report()
     keys    = report.get_keys('*')
@@ -145,7 +162,7 @@ if __name__ == '__main__':
     hitrate_report_sorted = sorted(hitrate_report.items(), key=lambda item: int(item[1]['hitrate']))
 
     # Grouping the keys in smaller sets based on their prefix.
-    key_groups = report.get_matching_groups(keys, levenshtein_distance)
+    key_groups = report.get_matching_groups(keys, levenshtein_distance, hide_progress_bar)
     
     key_group_report        = defaultdict(int)
     key_group_report_sorted = defaultdict(int)
@@ -177,13 +194,12 @@ if __name__ == '__main__':
     # Sort the report.
     key_group_report_sorted = sorted(key_group_report.items(), key=lambda item: int(item[1]['hitrate']))
 
-    if not detailed_report:
-        print_report_header()
+    if prefix_only: print_report_header()
 
     # Show the report.
     for prefix, value in key_group_report_sorted:
 
-        if detailed_report:
+        if not prefix_only:
 
             print_report_header()
             
@@ -214,7 +230,22 @@ if __name__ == '__main__':
         # The detailed report gets printed in colors for better readability.
         print prefix_output
 
-        if detailed_report: 
-            print
-        
-    
+        if not prefix_only: print
+
+if __name__ == '__main__':
+
+    parser = ArgumentParser(description='Generates a hit rate report from the Redis keys', formatter_class=RawTextHelpFormatter)
+
+    levenshtein_distance_help = dedent('''\
+        Manually calibrate the Levenshtein distance in percentage of string length. Default is 0.5
+            - values close to 0 will try to create many groups with very little differences between them.
+            - values close to 1 will try to create bigger buckets with many differences between strings but a smaller common prefix.
+    ''')
+
+    parser.add_argument('--prefix_only', action='store_true', help='Only show the groups of keys.', required=False)
+    parser.add_argument('-l', '--levenshtein_distance', help=levenshtein_distance_help, required=False)
+    parser.add_argument('--hide_progress_bar', action='store_true', help='Hides the progress bar in case you want to redirect the output to a file.', required=False)
+
+    args = vars(parser.parse_args())
+
+    main(args)

@@ -21,4 +21,6 @@ RUN chmod 770 /run.sh
 ADD scripts/report.py /scripts/
 RUN chmod 770 /scripts/report.py
 
+WORKDIR /scripts/
+
 CMD [ "/run.sh" ]
