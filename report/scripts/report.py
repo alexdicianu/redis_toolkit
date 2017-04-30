@@ -101,6 +101,7 @@ class Report(object):
                     obj = {
                         "get": 0,
                         "set": 0,
+                        "size": 0,
                         "hitrate": 0
                     }
 
@@ -110,10 +111,11 @@ class Report(object):
                 if gets + sets > 0:
                     hitrate = (gets / (gets + sets)) * 100
                     
-                report[key] = obj
-                report[key]['hitrate'] = int(hitrate)
-                report[key]['get'] = int(report[key]['get'])
-                report[key]['set'] = int(report[key]['set'])
+                report[key]             = obj
+                report[key]['hitrate']  = int(hitrate)
+                report[key]['get']      = int(report[key]['get'])
+                report[key]['set']      = int(report[key]['set'])
+                report[key]['size']     = int(float(report[key]['size']))
 
             return report
         except Exception as e:
@@ -124,8 +126,10 @@ def print_report_header():
     print '{:<10}'.format('Count'),
     print '{:<10}'.format('GET'),
     print '{:<10}'.format('SET'),
-    print '{:<10}'.format('Hit Rate (%)')
-    print '{:<130}'.format('-' * 130)
+    print '{:<15}'.format('Hit Rate (%)'),
+    print '{:<20}'.format('Size (KB)')
+    print '{:<150}'.format('-' * 150)
+
 
 def progress(count, total, suffix=''):
     """Generic progressbar for showing group matching progress."""
@@ -170,26 +174,31 @@ def main(args):
     # Building a report based on their hit rate.
     for prefix, group in key_groups.items():
 
-        gets = 0
-        sets = 0
+        gets    = 0
+        sets    = 0
         hitrate = 0
+        size    = 0
         
         for i, key in group.items():
             gets += hitrate_report[key]['get']
             sets += hitrate_report[key]['set']
+            size += hitrate_report[key]['size']
 
-        key_count = len(group)
-        gets = float(gets)
-        sets = float(sets)
+        key_count   = len(group)
+        gets        = float(gets)
+        sets        = float(sets)
+        # Converting size to from bytes to KB
+        avg_size    = (float(size) / float(key_count)) / 1024
 
         if gets + sets > 0:
             hitrate = (gets / (gets + sets)) * 100
         
         key_group_report[prefix] = {}
-        key_group_report[prefix]['items'] = int(key_count)
-        key_group_report[prefix]['gets'] = int(gets)
-        key_group_report[prefix]['sets'] = int(sets)
+        key_group_report[prefix]['items']   = int(key_count)
+        key_group_report[prefix]['gets']    = int(gets)
+        key_group_report[prefix]['sets']    = int(sets)
         key_group_report[prefix]['hitrate'] = int(hitrate)
+        key_group_report[prefix]['size']    = round(avg_size, 2)
 
     # Sort the report.
     key_group_report_sorted = sorted(key_group_report.items(), key=lambda item: int(item[1]['hitrate']))
@@ -213,9 +222,12 @@ def main(args):
                 print '{:<10}'.format(1),
                 print '{:<10}'.format(hitrate_report[key]['get']),
                 print '{:<10}'.format(hitrate_report[key]['set']),
-                print '{:<10}'.format(hitrate_report[key]['hitrate'])
+                print '{:<15}'.format(hitrate_report[key]['hitrate']),
+                # Converting size to from bytes to KB
+                size = round(float(hitrate_report[key]['size']) / float(1024), 2)
+                print '{:<20}'.format(size)
 
-            print '{:<130}'.format('-' * 130)
+            print '{:<150}'.format('-' * 150)
 
         if len(prefix) > 90: prefix = prefix[:80] + '...'
 
@@ -225,7 +237,8 @@ def main(args):
         prefix_output += '{:<11}'.format(value['items'])
         prefix_output += '{:<11}'.format(value['gets'])
         prefix_output += '{:<11}'.format(value['sets'])
-        prefix_output += '{:<11}'.format(value['hitrate'])
+        prefix_output += '{:<16}'.format(value['hitrate'])
+        prefix_output += '{:<21}'.format(value['size'])
 
         # The detailed report gets printed in colors for better readability.
         print prefix_output
