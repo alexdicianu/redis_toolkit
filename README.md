@@ -25,49 +25,37 @@ There are 2 types of reports that can be generated: a prefix-only and a full rep
 ```
 $ docker build -t dicix/redis_report .
 $ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report python report.py --prefix_only
-Key                                                                                        Count      GET        SET        Hit Rate (%)
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_commerce_shipping_rates:258*                                          436        0          0          0          
-pantheon-redis:cache_rules:comp_rules_*                                                    10         0          20         0          
-pantheon-redis:cache_commerce_shipping_rates:*                                             4          0          0          0          
-pantheon-redis:cache_path:shop/*                                                           6          6          6          50         
-pantheon-redis:cache_path:humans*                                                          2          90         1          98         
-pantheon-redis:cache_metatag:output:global:en:200:https:dbrand.com:/:shop/galaxy...*       2          2          0          100             
-pantheon-redis:cache_menu:links:main-menu:tree-data:en:*                                   24         10688      0          100   
+Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)
+------------------------------------------------------------------------------------------------------------------------------------------------------
+wp_userlogins:600*                                                                         8          5          6          45              0.07
+comment:get_comment_child_ids:21099*                                                       280        284        255        52              0.09
+comment:2109928*                                                                           14         14         10         58              0.47
+post_meta:111*                                                                             20         31         12         72              0.25
+product_*                                                                                  96         100        21         82              0.01
+posts:1189*                                                                                10         15         0          100             0.0 
 ```
 ### Full report
 
 ```
 $ docker build -t dicix/redis_report .
 $ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report python report.py
-Key                                                                                        Count      GET        SET        Hit Rate (%)
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_commerce_shipping_rates:2585422:*                                     1          0          0          0         
-pantheon-redis:cache_commerce_shipping_rates:2585490:*                                     1          0          0          0         
-pantheon-redis:cache_commerce_shipping_rates:2585422:*                                     1          0          0          0         
-pantheon-redis:cache_commerce_shipping_rates:2585457:*                                     1          0          0          0         
-pantheon-redis:cache_commerce_shipping_rates:2585422:*                                     1          0          0          0         
-pantheon-redis:cache_commerce_shipping_rates:2585405:*                                     1          0          0          0         
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_commerce_shipping_rates:25854*                                        6          0          0          0 
+Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)           
+------------------------------------------------------------------------------------------------------------------------------------------------------
+comment:get_comments:df74a34315b3a68d6e6298fc14e62eea:0.317725001493527301                 1          1          1          50              0.13                
+comment:get_comments:df626590f0126c6a7b88dfc205d6f7bf:0.317725001493527301                 1          1          1          50              0.09                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+comment:get_comments:df*                                                                   2          2          2          50              0.11 
 
-Key                                                                                        Count      GET        SET        Hit Rate (%)
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_path:shop/iphone-7-skins\xe2\x80\xa6                                  1          1          1          50        
-pantheon-redis:cache_path:shop/htc-10-skinsHTC\xe2\x80\x99s                                1          1          1          50        
-pantheon-redis:cache_path:shop/iphone-7-skins\xe2\x80\xa6                                  1          1          1          50        
-pantheon-redis:cache_path:shop/google-pixel-skins/n/nVideo                                 1          1          1          50        
-pantheon-redis:cache_path:shop/iphone-7-skins\xe2\x80\xa6                                  1          1          1          50        
-pantheon-redis:cache_path:shop/google-pixel-\xe2\x80\xa6                                   1          1          1          50        
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_path:shop/*                                                           6          6          6          50         
-
-Key                                                                                        Count      GET        SET        Hit Rate (%)
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_path:checkout/2611568/complete                                        1          1          1          50        
-pantheon-redis:cache_path:checkout/2611563/payment_method                                  1          1          1          50        
-----------------------------------------------------------------------------------------------------------------------------------
-pantheon-redis:cache_path:checkout/261156*                                                 2          2          2          50 
+Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)           
+------------------------------------------------------------------------------------------------------------------------------------------------------
+keyword_relationships:238739                                                               1          1          0          100             0.0                 
+keyword_relationships:238735                                                               1          2          0          100             0.0                 
+keyword_relationships:238739                                                               1          1          0          100             0.0                 
+keyword_relationships:238730                                                               1          2          0          100             0.0                 
+keyword_relationships:238739                                                               1          1          0          100             0.0                 
+keyword_relationships:238732                                                               1          1          0          100             0.0                 
+------------------------------------------------------------------------------------------------------------------------------------------------------
+keyword_relationships:23873*                                                               6          8          0          100             0.0   
 ```
 
 ## Options
