@@ -37,23 +37,15 @@ if __name__ == '__main__':
     
     for line in sys.stdin:
         try:
-            #print "\n\n"
-            #print "LINE:", line
             try:
                 l = line.split()
                 operation, key = l[3].strip('"'), l[4].strip('"')
                 
-                #print "OPERATION:", operation
-                #print "KEY:", key
-
                 # Only logging GET/SET calls.
                 op = get_op(operation)
                 if op is None: 
-                    #print "Non GET/SET operation detected:", operation
                     continue
                 
-                #print "GET/SET operation detected:", operation, key
-
             except Exception as e:
                 print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
                 continue
@@ -80,8 +72,6 @@ if __name__ == '__main__':
                     obj['size'] = float(obj['size'])
                     size = float(size)
                     obj['size'] = (obj['size'] + size) / 2
-
-            #print "OBJ:", obj
 
             r.hmset(key, obj)
             
