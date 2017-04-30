@@ -24,7 +24,7 @@ There are 2 types of reports that can be generated: a prefix-only and a full rep
 
 ```
 $ docker build -t dicix/redis_report .
-$ docker run --rm -it --name redis_report --network=DOCKER_NETWORK -e "OPTIONS=--prefix_only" dicix/redis_report
+$ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report python report.py --prefix_only
 Key                                                                                        Count      GET        SET        Hit Rate (%)
 ----------------------------------------------------------------------------------------------------------------------------------
 pantheon-redis:cache_commerce_shipping_rates:258*                                          436        0          0          0          
@@ -39,7 +39,7 @@ pantheon-redis:cache_menu:links:main-menu:tree-data:en:*                        
 
 ```
 $ docker build -t dicix/redis_report .
-$ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report
+$ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report python report.py
 Key                                                                                        Count      GET        SET        Hit Rate (%)
 ----------------------------------------------------------------------------------------------------------------------------------
 pantheon-redis:cache_commerce_shipping_rates:2585422:*                                     1          0          0          0         
@@ -71,20 +71,23 @@ pantheon-redis:cache_path:checkout/261156*                                      
 ```
 
 ## Options
-There are a couple of options that can be passed to the report generator. They are passed via docker's -e paramenter (environment) like so: `-e "OPTIONS=--prefix_only"`. They are described below. The LEVENSHTEIN_DISTANCE parameter is used for calculating the degree of similarity between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
+There are a couple of options that can be passed to the report generator either via docker's -e paramenter (environment) like so: `-e "OPTIONS=--prefix_only"` or directly. They are described below. The LEVENSHTEIN_DISTANCE parameter is used for calculating the degree of similarity between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
 
 * values close to 0 will try to create many groups with very little differences between them 
 * values close to 1 will try to create bigger buckets with many differences between strings but a smaller common prefix
 
 ```
-usage: report.py [-h] [-p] [-l LEVENSHTEIN_DISTANCE]
+usage: report.py [-h] [--prefix_only] [-l LEVENSHTEIN_DISTANCE]
+                 [--hide_progress_bar]
 
 Generates a hit rate report from the Redis keys
 
 optional arguments:
   -h, --help            show this help message and exit
-  -p, --prefix_only     Show individual keys
+  --prefix_only         Only show the groups of keys.
   -l LEVENSHTEIN_DISTANCE, --levenshtein_distance LEVENSHTEIN_DISTANCE
-                        Manually calibrate the Levenshtein distance in
-                        percentage of smallest string. Default is 0.5
+                        Manually calibrate the Levenshtein distance in percentage of string length. Default is 0.5
+                            - values close to 0 will try to create many groups with very little differences between them.
+                            - values close to 1 will try to create bigger buckets with many differences between strings but a smaller common prefix.
+  --hide_progress_bar   Hides the progress bar in case you want to redirect the output to a file.
 ```
