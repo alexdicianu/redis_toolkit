@@ -40,13 +40,13 @@ class Report(object):
     def get_keys(self, key_name):
         return self.redis.keys(key_name)
 
-    def get_matching_groups(self, keys, grouping_degree=0.5, hide_progress_bar=False):
+    def get_matching_groups(self, keys, similarity_degree=0.5, hide_progress_bar=False):
         "Given a list of keys, group them together based on their similarity using the Levenshtein distance"
 
         groups      = defaultdict(dict)
         processed   = defaultdict(dict)
 
-        grouping_degree = float(grouping_degree)
+        similarity_degree = float(similarity_degree)
 
         i = 0
         n = len(keys)
@@ -67,7 +67,7 @@ class Report(object):
                 min_len = len(min_str)
 
                 # Smallest string length compared to the total Levenshtein distance.
-                if min_len * grouping_degree >= l_d:
+                if min_len * similarity_degree >= l_d:
                     prefix = self.common_prefix([keys[i], keys[j]])
                     
                     groups[prefix][len(groups[prefix]) + 1] = keys[i]
@@ -156,9 +156,9 @@ def main(args):
     if args['prefix_only']:
         prefix_only = True
 
-    grouping_degree = 0.5
-    if args['grouping_degree']:
-        grouping_degree = args['grouping_degree']
+    similarity_degree = 0.5
+    if args['similarity_degree']:
+        similarity_degree = args['similarity_degree']
 
     hide_progress_bar = False
     if args['hide_progress_bar']:
@@ -172,7 +172,7 @@ def main(args):
     hitrate_report_sorted = sorted(hitrate_report.items(), key=lambda item: int(item[1]['hitrate']))
 
     # Grouping the keys in smaller sets based on their prefix.
-    key_groups = report.get_matching_groups(keys, grouping_degree, hide_progress_bar)
+    key_groups = report.get_matching_groups(keys, similarity_degree, hide_progress_bar)
     
     key_group_report        = defaultdict(int)
     key_group_report_sorted = defaultdict(int)
@@ -261,14 +261,14 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description='Generates a hit rate report from the Redis keys', formatter_class=RawTextHelpFormatter)
 
-    grouping_degree_help = dedent('''\
-        Manually calibrate the grouping degree in percentage of string length. Default is 0.5
+    similarity_degree_help = dedent('''\
+        Manually calibrate the similarity degree. Default is 0.5
             - values close to 0 will try to create many groups with very little differences between them.
             - values close to 1 will try to create less groups with many differences between strings but a smaller common prefix.
     ''')
 
     parser.add_argument('--prefix_only', action='store_true', help='Only show the groups of keys.', required=False)
-    parser.add_argument('-g', '--grouping_degree', help=grouping_degree_help, required=False)
+    parser.add_argument('-s', '--similarity_degree', help=similarity_degree_help, required=False)
     parser.add_argument('--hide_progress_bar', action='store_true', help='Hides the progress bar in case you want to redirect the output to a file.', required=False)
 
     args = vars(parser.parse_args())
