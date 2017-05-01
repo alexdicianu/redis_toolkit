@@ -40,13 +40,13 @@ class Report(object):
     def get_keys(self, key_name):
         return self.redis.keys(key_name)
 
-    def get_matching_groups(self, keys, levenshtein_distance=0.5, hide_progress_bar=False):
+    def get_matching_groups(self, keys, grouping_degree=0.5, hide_progress_bar=False):
         "Given a list of keys, group them together based on their similarity using the Levenshtein distance"
 
         groups      = defaultdict(dict)
         processed   = defaultdict(dict)
 
-        levenshtein_distance = float(levenshtein_distance)
+        grouping_degree = float(grouping_degree)
 
         i = 0
         n = len(keys)
@@ -67,7 +67,7 @@ class Report(object):
                 min_len = len(min_str)
 
                 # Smallest string length compared to the total Levenshtein distance.
-                if min_len * levenshtein_distance >= l_d:
+                if min_len * grouping_degree >= l_d:
                     prefix = self.common_prefix([keys[i], keys[j]])
                     
                     groups[prefix][len(groups[prefix]) + 1] = keys[i]
@@ -127,7 +127,7 @@ def print_report_header():
     print '{:<10}'.format('GET'),
     print '{:<10}'.format('SET'),
     print '{:<15}'.format('Hit Rate (%)'),
-    print '{:<20}'.format('Size (KB)')
+    print '{:<20}'.format('Avg Size (KB)')
     print '{:<150}'.format('-' * 150)
 
 
@@ -143,6 +143,12 @@ def progress(count, total, suffix=''):
     sys.stdout.write('Crunching numbers [%s] %s%s %s\r' % (bar, percents, '%', suffix))
     sys.stdout.flush()
 
+def avg_size_format(size):
+    """Convert the size from Bytes to KB and round the result."""
+    size = round(float(size) / float(1024), 2)
+    if size <= 0: return 'n/a'
+    return size
+
 def main(args):
     """Main script function where the report gets printed to stdout."""
 
@@ -150,9 +156,9 @@ def main(args):
     if args['prefix_only']:
         prefix_only = True
 
-    levenshtein_distance = 0.5
-    if args['levenshtein_distance']:
-        levenshtein_distance = args['levenshtein_distance']
+    grouping_degree = 0.5
+    if args['grouping_degree']:
+        grouping_degree = args['grouping_degree']
 
     hide_progress_bar = False
     if args['hide_progress_bar']:
@@ -166,7 +172,7 @@ def main(args):
     hitrate_report_sorted = sorted(hitrate_report.items(), key=lambda item: int(item[1]['hitrate']))
 
     # Grouping the keys in smaller sets based on their prefix.
-    key_groups = report.get_matching_groups(keys, levenshtein_distance, hide_progress_bar)
+    key_groups = report.get_matching_groups(keys, grouping_degree, hide_progress_bar)
     
     key_group_report        = defaultdict(int)
     key_group_report_sorted = defaultdict(int)
@@ -177,18 +183,24 @@ def main(args):
         gets    = 0
         sets    = 0
         hitrate = 0
+        # In order to not skew the average, we must ignore keys for which the size is zero.
         size    = 0
+        n       = 0
         
         for i, key in group.items():
             gets += hitrate_report[key]['get']
             sets += hitrate_report[key]['set']
-            size += hitrate_report[key]['size']
+            if hitrate_report[key]['size'] > 0:
+                n    += 1
+                size += hitrate_report[key]['size']
 
         key_count   = len(group)
         gets        = float(gets)
         sets        = float(sets)
         # Converting size to from bytes to KB
-        avg_size    = (float(size) / float(key_count)) / 1024
+        avg_size = 0
+        if n > 0:
+            avg_size = float(size) / float(n)
 
         if gets + sets > 0:
             hitrate = (gets / (gets + sets)) * 100
@@ -198,7 +210,7 @@ def main(args):
         key_group_report[prefix]['gets']    = int(gets)
         key_group_report[prefix]['sets']    = int(sets)
         key_group_report[prefix]['hitrate'] = int(hitrate)
-        key_group_report[prefix]['size']    = round(avg_size, 2)
+        key_group_report[prefix]['size']    = avg_size_format(avg_size)
 
     # Sort the report.
     key_group_report_sorted = sorted(key_group_report.items(), key=lambda item: int(item[1]['hitrate']))
@@ -224,7 +236,7 @@ def main(args):
                 print '{:<10}'.format(hitrate_report[key]['set']),
                 print '{:<15}'.format(hitrate_report[key]['hitrate']),
                 # Converting size to from bytes to KB
-                size = round(float(hitrate_report[key]['size']) / float(1024), 2)
+                size = avg_size_format(hitrate_report[key]['size'])
                 print '{:<20}'.format(size)
 
             print '{:<150}'.format('-' * 150)
@@ -249,14 +261,14 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description='Generates a hit rate report from the Redis keys', formatter_class=RawTextHelpFormatter)
 
-    levenshtein_distance_help = dedent('''\
-        Manually calibrate the Levenshtein distance in percentage of string length. Default is 0.5
+    grouping_degree_help = dedent('''\
+        Manually calibrate the grouping degree in percentage of string length. Default is 0.5
             - values close to 0 will try to create many groups with very little differences between them.
-            - values close to 1 will try to create bigger buckets with many differences between strings but a smaller common prefix.
+            - values close to 1 will try to create less groups with many differences between strings but a smaller common prefix.
     ''')
 
     parser.add_argument('--prefix_only', action='store_true', help='Only show the groups of keys.', required=False)
-    parser.add_argument('-l', '--levenshtein_distance', help=levenshtein_distance_help, required=False)
+    parser.add_argument('-g', '--grouping_degree', help=grouping_degree_help, required=False)
     parser.add_argument('--hide_progress_bar', action='store_true', help='Hides the progress bar in case you want to redirect the output to a file.', required=False)
 
     args = vars(parser.parse_args())
