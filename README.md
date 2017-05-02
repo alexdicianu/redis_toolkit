@@ -39,7 +39,7 @@ posts:1189*                                                                     
 ### Full report
 
 ```
-$ $ ./redis-monitor report
+$ ./redis-monitor report
 Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)           
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 comment:get_comments:df74a34315b3a68d6e6298fc14e62eea:0.317725001493527301                 1          1          1          50              0.13                
