@@ -59,13 +59,15 @@ keyword_relationships:23873*                                                    
 ```
 
 ## Options
-There are a few of options that can be passed to the report generator either via docker's -e paramenter (environment) like so: `-e "OPTIONS=--prefix_only"` or directly. They are described below. The GROUPING_DEGREE parameter is used for calculating the similarity degree between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
+There are a few of options that can be passed to the report generator either via docker's -e paramenter (environment) like so: `-e "OPTIONS=--prefix_only"` or directly. They are described below. The SIMILARITY_DEGREE parameter is used for calculating the similarity degree between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
 
 * values close to 0 will try to create many groups with very little differences between them 
 * values close to 1 will try to create less groups with many differences between strings but a smaller common prefix
 
+If you want to redirect the output to a file (`via > /path/to/report.log`) you should add the `--hide_progress_bar` to not polute the report with the progress bar information.
+
 ```
-usage: report.py [-h] [--prefix_only] [-g GROUPING_DEGREE]
+usage: report.py [-h] [--prefix_only] [-s SIMILARITY_DEGREE]
                  [--hide_progress_bar]
 
 Generates a hit rate report from the Redis keys
@@ -73,8 +75,8 @@ Generates a hit rate report from the Redis keys
 optional arguments:
   -h, --help            show this help message and exit
   --prefix_only         Only show the groups of keys.
-  -g GROUPING_DEGREE, --grouping_degree GROUPING_DEGREE
-                        Manually calibrate the grouping degree in percentage of string length. Default is 0.5
+  -s SIMILARITY_DEGREE, --similarity_degree SIMILARITY_DEGREE
+                        Manually calibrate the similarity degree. Default is 0.5
                             - values close to 0 will try to create many groups with very little differences between them.
                             - values close to 1 will try to create less groups with many differences between strings but a smaller common prefix.
   --hide_progress_bar   Hides the progress bar in case you want to redirect the output to a file.
