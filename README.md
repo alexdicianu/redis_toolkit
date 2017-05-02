@@ -4,27 +4,29 @@ Actively monitors a redis database using the `redis-cli monitor` command (https:
 ## Installation & Usage
 A valid docker install is required. 
 
-Modify docker-compose.yml with the target REDIS_CLI string, then build and run. The output should be displayed on screen. You are now injecting every command GET/SET command that Redis is running into your local instance. To generate the report see below.
+Clone this repository, go to the clonned directory and run the commands below. The output should be displayed on screen.
 
 ```
-$ docker-compose build
-$ docker-compose up
+$ chmod +x ./redis-monitor
+$ ./redis-monitor install
 ```
-
-## Implementation details
-The output shows the key hitrate, calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`, the number of GET and SET operations. The result is ordered by hitrate asscending and is refreshed every 5 seconds for an (almost) instantaneous feedback about what is going on the live Redis server.
-
-## Running it in production
-MONITOR is a debugging command that streams back every command processed by the Redis server. Running this on a production database comes with a performance cost that's hard to estimate. Use it with caution on production servers.
 
 ## Generate the report
-There are 2 types of reports that can be generated: a prefix-only and a full report for all your keys. The default is the full report. You can get the DOCKER_NETWORK by running `docker network ls` but it's usualy `redismonitor_default`.
+There are 2 types of reports that can be generated: a prefix-only and a full report for all your keys. The default is the full report.
 
-### Prefix only report
+### Running the prefix only report
+
+First you'll have to start monitoring the target Redis server using the command below and following the instructions.
 
 ```
-$ docker build -t dicix/redis_report .
-$ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report python report.py --prefix_only
+$ ./redis-monitor start
+Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
+```
+
+Once you get enough data, you can run the report.
+
+```
+$ ./redis-monitor report --prefix_only
 Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 wp_userlogins:600*                                                                         8          5          6          45              0.07
@@ -37,8 +39,7 @@ posts:1189*                                                                     
 ### Full report
 
 ```
-$ docker build -t dicix/redis_report .
-$ docker run --rm -it --name redis_report --network=DOCKER_NETWORK dicix/redis_report python report.py
+$ $ ./redis-monitor report
 Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)           
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 comment:get_comments:df74a34315b3a68d6e6298fc14e62eea:0.317725001493527301                 1          1          1          50              0.13                
@@ -58,8 +59,14 @@ keyword_relationships:238732                                                    
 keyword_relationships:23873*                                                               6          8          0          100             0.0   
 ```
 
+When you're done, you can stop the the monitoring process via the command below.
+
+```
+$ ./redis-monitor stop
+```
+
 ## Options
-There are a few of options that can be passed to the report generator either via docker's -e paramenter (environment) like so: `-e "OPTIONS=--prefix_only"` or directly. They are described below. The SIMILARITY_DEGREE parameter is used for calculating the similarity degree between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
+There are a few of options that can be passed to the report generator. They are described below. The SIMILARITY_DEGREE parameter is used for calculating the similarity degree between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
 
 * values close to 0 will try to create many groups with very little differences between them 
 * values close to 1 will try to create less groups with many differences between strings but a smaller common prefix
@@ -67,7 +74,7 @@ There are a few of options that can be passed to the report generator either via
 If you want to redirect the output to a file (`via > /path/to/report.log`) you should add the `--hide_progress_bar` to not polute the report with the progress bar information.
 
 ```
-usage: report.py [-h] [--prefix_only] [-s SIMILARITY_DEGREE]
+usage: ./redis-monitor report [-h] [--prefix_only] [-s SIMILARITY_DEGREE]
                  [--hide_progress_bar]
 
 Generates a hit rate report from the Redis keys
@@ -81,3 +88,9 @@ optional arguments:
                             - values close to 1 will try to create less groups with many differences between strings but a smaller common prefix.
   --hide_progress_bar   Hides the progress bar in case you want to redirect the output to a file.
 ```
+
+## Implementation details
+The output shows the key hitrate (calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`), the number of keys in the group, the number of GET and SET operations and the average size of each key only for SET operations. The result is ordered by hitrate asscending.
+
+## Running it in production
+`redis-cli MONITOR` is a debugging command that streams back every command processed by the Redis server. Running this on a production database comes with a performance cost that's hard to estimate. Use it with caution on production servers.
