@@ -37,14 +37,24 @@ monitor_start() {
     docker run --rm -it -d --name redis_monitor_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_monitor_injector
 
     monitor_ps
-
-    echo "Monitoring ..."
 }
 
 # Stopping the db and injector containers.
 monitor_stop() {
-    echo "Stopping containers ..."
-    docker stop redis_monitor_injector redis_monitor_db
+    echo "[1] Stop the injection service and keep the local database for reporting purposes."
+    echo "[2] Stop the injection service and the local database. This will delete the collected data. Please make sure you have generated the report before you choose this option."
+    echo -n "Please choose enter your choice [1|2]: "
+    read answer
+
+    case $answer in
+        1) 
+            docker stop redis_monitor_injector ;;
+        2) 
+            docker stop redis_monitor_injector redis_monitor_db ;;
+        *) 
+            echo "Option not recognized." ;;
+    esac
+    
 }
 
 # Show containers in this network namespace.
@@ -57,20 +67,16 @@ monitor_cleanup() {
     echo -n "Please confirm that you wish to delete the containers from your computer [Y/n]: "
     read answer
 
-    while [ 1 ]
-    do
-        case $answer in
-            Y|y|Yes|yes) 
-                docker rmi redis_monitor_db redis_monitor_injector redis_monitor_report
-                break ;;
-            N|n|No|no) 
-                # Continuing the process. 
-                break ;;
-            *) 
-                echo -n "Option not recognized." 
-                break ;;
-        esac
-    done
+    case $answer in
+        Y|y|Yes|yes) 
+            docker rmi redis_monitor_db redis_monitor_injector redis_monitor_report ;;
+        N|n|No|no) 
+            # Continuing the process. 
+            ;;
+        *) 
+            echo "Option not recognized." ;;
+    esac
+
 }
 
 # Running the report.
