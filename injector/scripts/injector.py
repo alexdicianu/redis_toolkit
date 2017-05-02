@@ -1,5 +1,6 @@
 import sys
 import redis
+import time
 from collections import defaultdict, Counter
 
 def redis_get():
@@ -56,7 +57,9 @@ if __name__ == '__main__':
                 obj = {
                     "get": 0,
                     "set": 0,
-                    "size": 0
+                    "size": 0,
+                    "last_set": 0,
+                    "lifetime": 0
                 }
                 
             if op is 'get':
@@ -72,6 +75,19 @@ if __name__ == '__main__':
                     obj['size'] = float(obj['size'])
                     size = float(size)
                     obj['size'] = (obj['size'] + size) / 2
+
+                # Lifetime
+                obj['last_set'] = float(obj['last_set'])
+                if obj['last_set'] == 0:
+                    obj['last_set'] = time.time()
+                    obj['lifetime'] = 0
+                else:
+                    current_timestamp   = time.time()
+                    lifetime            = current_timestamp - obj['last_set']
+
+                    obj['last_set']     = current_timestamp
+                    obj['lifetime']     = lifetime
+
 
             r.hmset(key, obj)
             

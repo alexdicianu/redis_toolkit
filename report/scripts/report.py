@@ -127,8 +127,9 @@ def print_report_header():
     print '{:<10}'.format('GET'),
     print '{:<10}'.format('SET'),
     print '{:<15}'.format('Hit Rate (%)'),
-    print '{:<20}'.format('Avg Size (KB)')
-    print '{:<150}'.format('-' * 150)
+    print '{:<15}'.format('Avg Size (KB)'),
+    print '{:<20}'.format('Lifetime (seconds)')
+    print '{:<170}'.format('-' * 170)
 
 
 def progress(count, total, suffix=''):
@@ -143,11 +144,17 @@ def progress(count, total, suffix=''):
     sys.stdout.write('Crunching numbers [%s] %s%s %s\r' % (bar, percents, '%', suffix))
     sys.stdout.flush()
 
-def avg_size_format(size):
+def size_format(size):
     """Convert the size from Bytes to KB and round the result."""
     size = round(float(size) / float(1024), 2)
     if size <= 0: return 'n/a'
     return size
+
+def lifetime_format(lifetime):
+    """Proper format for the lifetime"""
+    lifetime = round(float(lifetime), 2)
+    if lifetime <= 0: return 'n/a'
+    return lifetime
 
 def main(args):
     """Main script function where the report gets printed to stdout."""
@@ -184,33 +191,46 @@ def main(args):
         sets    = 0
         hitrate = 0
         # In order to not skew the average, we must ignore keys for which the size is zero.
-        size    = 0
-        n       = 0
+        size        = 0
+        n_size      = 0
+
+        lifetime    = 0
+        n_lifetime  = 0
         
         for i, key in group.items():
             gets += hitrate_report[key]['get']
             sets += hitrate_report[key]['set']
             if hitrate_report[key]['size'] > 0:
-                n    += 1
-                size += hitrate_report[key]['size']
+                n_size      += 1
+                size        += hitrate_report[key]['size']
+            
+            lifetime_ = float(hitrate_report[key]['lifetime'])
+            if lifetime_ > 0: 
+                n_lifetime  += 1
+                lifetime    += lifetime_
 
         key_count   = len(group)
         gets        = float(gets)
         sets        = float(sets)
         # Converting size to from bytes to KB
         avg_size = 0
-        if n > 0:
-            avg_size = float(size) / float(n)
+        if n_size > 0:
+            avg_size = float(size) / float(n_size)
 
         if gets + sets > 0:
             hitrate = (gets / (gets + sets)) * 100
+
+        avg_lifetime = 0
+        if n_lifetime > 0:
+            avg_lifetime = float(lifetime) / float(n_lifetime)
         
         key_group_report[prefix] = {}
-        key_group_report[prefix]['items']   = int(key_count)
-        key_group_report[prefix]['gets']    = int(gets)
-        key_group_report[prefix]['sets']    = int(sets)
-        key_group_report[prefix]['hitrate'] = int(hitrate)
-        key_group_report[prefix]['size']    = avg_size_format(avg_size)
+        key_group_report[prefix]['items']    = int(key_count)
+        key_group_report[prefix]['gets']     = int(gets)
+        key_group_report[prefix]['sets']     = int(sets)
+        key_group_report[prefix]['hitrate']  = int(hitrate)
+        key_group_report[prefix]['size']     = size_format(avg_size)
+        key_group_report[prefix]['lifetime'] = lifetime_format(avg_lifetime)
 
     # Sort the report.
     key_group_report_sorted = sorted(key_group_report.items(), key=lambda item: int(item[1]['hitrate']))
@@ -236,10 +256,12 @@ def main(args):
                 print '{:<10}'.format(hitrate_report[key]['set']),
                 print '{:<15}'.format(hitrate_report[key]['hitrate']),
                 # Converting size to from bytes to KB
-                size = avg_size_format(hitrate_report[key]['size'])
-                print '{:<20}'.format(size)
+                size = size_format(hitrate_report[key]['size'])
+                print '{:<15}'.format(size),
+                
+                print '{:<20}'.format(lifetime_format(hitrate_report[key]['lifetime']))
 
-            print '{:<150}'.format('-' * 150)
+            print '{:<170}'.format('-' * 170)
 
         if len(prefix) > 90: prefix = prefix[:80] + '...'
 
@@ -250,7 +272,8 @@ def main(args):
         prefix_output += '{:<11}'.format(value['gets'])
         prefix_output += '{:<11}'.format(value['sets'])
         prefix_output += '{:<16}'.format(value['hitrate'])
-        prefix_output += '{:<21}'.format(value['size'])
+        prefix_output += '{:<16}'.format(value['size'])
+        prefix_output += '{:<21}'.format(value['lifetime'])
 
         # The detailed report gets printed in colors for better readability.
         print prefix_output
