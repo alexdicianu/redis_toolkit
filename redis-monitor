@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# The network on which the containers will be built.
+NETWORK="redis_monitor"
+
+# Builds the necessary containers.
+monitor_install() {
+    echo "Installing ..."
+    docker build -t $(whoami)/redis_monitor_db db/
+    docker build -t $(whoami)/redis_monitor_injector injector/
+    docker build -t $(whoami)/redis_monitor_report report/
+
+    # Putting all containers on the same network.
+    docker network rm $NETWORK
+    docker network create $NETWORK
+}
+
+# Starts the db and injector containers charged with monitoring the remote Redis instance.
+monitor_start() {
+    echo -n "Please enter the redis-cli string for the Redis server you wish to monitor: "
+    read redis_cli
+
+    # Start db container.
+    docker run --rm -it -d -p 6379:6379 --name redis_monitor_db --network=$NETWORK $(whoami)/redis_monitor_db
+
+    # Check if the local redis is available.
+    while [ 1 ]; do
+        pong=`redis-cli ping`
+        if [ "$pong" = "PONG" ]; then
+            break
+        else
+            sleep 1
+        fi
+    done
+
+    # Start injector container.
+    docker run --rm -it -d --name redis_monitor_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_monitor_injector
+
+    monitor_ps
+
+    echo "Monitoring ..."
+}
+
+# Stopping the db and injector containers.
+monitor_stop() {
+    echo "Stopping containers ..."
+    docker stop redis_monitor_injector redis_monitor_db
+}
+
+# Show containers in this network namespace.
+monitor_ps() {
+    docker ps -f "network=$NETWORK"
+}
+
+# Clean up function.
+monitor_cleanup() {
+    echo -n "Please confirm that you wish to delete the containers from your computer [Y/n]: "
+    read answer
+
+    while [ 1 ]
+    do
+        case $answer in
+            Y|y|Yes|yes) 
+                docker rmi redis_monitor_db redis_monitor_injector redis_monitor_report
+                break ;;
+            N|n|No|no) 
+                # Continuing the process. 
+                break ;;
+            *) 
+                echo -n "Option not recognized." 
+                break ;;
+        esac
+    done
+}
+
+# Running the report.
+monitor_report() {
+    # First argument is irrelevant.
+    shift
+    docker run --rm -it --name redis_monitor_report --network=$NETWORK dicix/redis_monitor_report python report.py $@
+}
+
+################################
+##### Script starts here #######
+################################
+
+if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
+then
+    echo "usage: redis-monitor [-h] commands
+
+Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor).
+
+Commands:
+    install     Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
+    cleanup     Cleans up the installation.
+
+    start       Starts monitoring the target Redis server and injects data into a local Redis instance which will be used for reporting purposes.
+    stop        Stops the monitoring without deleting the local data.
+    report      Runs the report on the local instance."
+    exit 0
+fi
+
+# Check if docker is installed and running.
+docker --version >/dev/null 2>&1 || { echo >&2 "It looks like you don't have docker installed. Please visit this url to download & install it: https://www.docker.com/"; exit 1; }
+
+case "$1" in
+    install)
+        monitor_install ;;
+    cleaup)
+        monitor_cleanup ;;
+    start)
+        monitor_start ;;
+    stop) 
+        monitor_stop ;;
+    ps) 
+        monitor_ps ;;
+    report) 
+        monitor_report $@;; 
+
+    --) ;;
+    *) echo "redis-monitor $1 is not a recognized option" ;;
+esac

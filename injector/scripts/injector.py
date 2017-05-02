@@ -32,7 +32,7 @@ def get_op(operation):
     return None
     
 if __name__ == '__main__':
-    pool = redis.ConnectionPool(host='redis', port=6379, db=0)
+    pool = redis.ConnectionPool(host='redis_monitor_db', port=6379, db=0)
     r = redis.Redis(connection_pool=pool)
     
     for line in sys.stdin:
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                     continue
                 
             except Exception as e:
-                print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
+                print 'Error on line {}. Command: {}'.format(sys.exc_info()[-1].tb_lineno, line), type(e), e
                 continue
 
             obj = r.hgetall(key)
