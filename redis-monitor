@@ -21,7 +21,7 @@ monitor_start() {
     read redis_cli
 
     # Start db container.
-    docker run --rm -it -d -p 6379:6379 --name redis_monitor_db --network=$NETWORK $(whoami)/redis_monitor_db
+    docker run --rm -it -d -p 6379:6379 --name redis_monitor_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_monitor_db
 
     # Check if the local redis is available.
     while [ 1 ]; do

@@ -7,6 +7,10 @@ from textwrap import dedent
 
 import Levenshtein
 
+from pprint import pprint
+
+import difflib
+
 '''
 1. Get the groups of keys based on their Levenshtein distance. 
      - Start with levenshtein_dist < len(target_str) / 2 - at least under 50% of the original string. Offer it as an option.
@@ -40,7 +44,7 @@ class Report(object):
     def get_keys(self, key_name):
         return self.redis.keys(key_name)
 
-    def get_matching_groups(self, keys, similarity_degree=0.5, hide_progress_bar=False):
+    def get_matching_groups(self, keys, similarity_degree=0.2, hide_progress_bar=False):
         "Given a list of keys, group them together based on their similarity using the Levenshtein distance"
 
         groups      = defaultdict(dict)
@@ -50,36 +54,37 @@ class Report(object):
 
         i = 0
         n = len(keys)
-
-        loops = 0
-        
+                
         for i in range(0, n):
             for j in range(i+1, n):
-
-                loops += 1
-
                 # Don't process keys that have already been assigned in groups.
                 if processed[keys[j]]: continue
 
-                l_d = float(Levenshtein.distance(keys[i], keys[j]))
-                
-                min_str = min([keys[i], keys[j]], key=len)
-                min_len = len(min_str)
+                l_d     = float(Levenshtein.distance(keys[i], keys[j]))
+                min_len = len(min([keys[i], keys[j]], key=len))
 
-                # Smallest string length compared to the total Levenshtein distance.
+                prefix = self.common_prefix([keys[i], keys[j]])
+
+                # Biggest string length compared to the total Levenshtein distance.
                 if min_len * similarity_degree >= l_d:
-                    prefix = self.common_prefix([keys[i], keys[j]])
                     
-                    groups[prefix][len(groups[prefix]) + 1] = keys[i]
-                    groups[prefix][len(groups[prefix]) + 1] = keys[j]
-                    
-                    processed[keys[j]] = True
+                    prefix_threshold = (float(len(prefix)) / float(min_len))
+                    # We need to check this as well to avoid having very different strings with a low Levenshtein distance.
+                    # E.g.
+                    #   - pantheon-redis:cache_path:fitness/50-bodyweight-exercises-you-can-do-anywhere-030612
+                    #   - pantheon-redis:cache_page:http://www.test.com/fitness/50-bodyweight-exercises-you-can-do-anywhere-030612
+                    if prefix_threshold > 1 - similarity_degree:
+                        processed[keys[j]] = True
+                        groups[prefix][len(groups[prefix]) + 1] = keys[j]
                 j+= 1
-
+                
+            groups[prefix][len(groups[prefix]) + 1] = keys[i]
+            
             # For long running reports show some progress feedback.
             if not hide_progress_bar: progress(i, n)
 
             i += 1
+
 
         return groups
 
@@ -163,7 +168,7 @@ def main(args):
     if args['prefix_only']:
         prefix_only = True
 
-    similarity_degree = 0.5
+    similarity_degree = 0.2
     if args['similarity_degree']:
         similarity_degree = args['similarity_degree']
 
@@ -285,7 +290,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='Generates a hit rate report from the Redis keys', formatter_class=RawTextHelpFormatter)
 
     similarity_degree_help = dedent('''\
-        Manually calibrate the similarity degree. Default is 0.5
+        Manually calibrate the similarity degree. Default is 0.2
             - values close to 0 will try to create many groups with very little differences between them.
             - values close to 1 will try to create less groups with many differences between strings but a smaller common prefix.
     ''')
