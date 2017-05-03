@@ -56,6 +56,9 @@ class Report(object):
         n = len(keys)
                 
         for i in range(0, n):
+
+            if processed[keys[i]]: continue
+
             for j in range(i+1, n):
                 # Don't process keys that have already been assigned in groups.
                 if processed[keys[j]]: continue
@@ -78,6 +81,7 @@ class Report(object):
                         groups[prefix][len(groups[prefix]) + 1] = keys[j]
                 j+= 1
                 
+            processed[keys[i]] = True
             groups[prefix][len(groups[prefix]) + 1] = keys[i]
             
             # For long running reports show some progress feedback.
