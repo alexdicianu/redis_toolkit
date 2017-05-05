@@ -7,10 +7,6 @@ from textwrap import dedent
 
 import Levenshtein
 
-from pprint import pprint
-
-import difflib
-
 '''
 1. Get the groups of keys based on their Levenshtein distance. 
      - Start with levenshtein_dist < len(target_str) / 2 - at least under 50% of the original string. Offer it as an option.

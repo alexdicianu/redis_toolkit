@@ -83,7 +83,7 @@ monitor_cleanup() {
 monitor_report() {
     # First argument is irrelevant.
     shift
-    docker run --rm -it --name redis_monitor_report --network=$NETWORK dicix/redis_monitor_report python report.py $@
+    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ dicix/redis_monitor_report python report.py $@
 }
 
 ################################

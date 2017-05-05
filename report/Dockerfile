@@ -18,7 +18,7 @@ RUN pip install python-levenshtein
 ADD run.sh /
 RUN chmod 770 /run.sh
 
-ADD scripts/report.py /scripts/
+ADD scripts/report_tree.py /scripts/report.py
 RUN chmod 770 /scripts/report.py
 
 WORKDIR /scripts/
