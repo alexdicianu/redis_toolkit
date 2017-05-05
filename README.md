@@ -1,7 +1,7 @@
 # Redis Monitor
 Actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor), stores the commands Redis is running locally and then generates a report.
 
-## Installation & Usage
+## Installation
 A valid docker install is required. 
 
 Clone this repository, go to the clonned directory and run the commands below. The output should be displayed on screen.
