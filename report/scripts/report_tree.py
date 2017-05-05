@@ -340,6 +340,9 @@ if __name__ == '__main__':
         root = Node('ROOT')
         root.build_tree(keys)
 
+        # Show more feedback. Populating takes a few extra seconds.
+        progress(100, 100, suffix='Almost there ...')
+
         root.populate()
 
         # Build the cache.
