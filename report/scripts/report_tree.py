@@ -118,14 +118,19 @@ class Node(object):
             if child.is_leaf():
                 # This is where I query Redis for the key information (gets, set, hitrate, etc).
                 data = redis_hgetall(child.key)
-
+                
                 child.leaf_count = 1
 
-                child.get  = int(data['get'])
-                child.set  = int(data['set'])
-                # Only leaf nodes have fixed sizes and lifetimes (directly from Redis).
-                child.size = float(data['size'])
-                child.lifetime = float(data['lifetime'])
+                try: 
+                    child.get  = int(data['get'])
+                    child.set  = int(data['set'])
+                    # Only leaf nodes have fixed sizes and lifetimes (directly from Redis).
+                    child.size = float(data['size'])
+                    child.lifetime = float(data['lifetime'])
+                except KeyError:
+                    pass
+                    # Sometimes not all the keys are set ... Just using defaults.
+                    #sys.stderr.write('Error on line {}. {}, {}'.format(sys.exc_info()[-1].tb_lineno, type(e), e))
 
                 # For average calculation.
                 if child.size > 0:
