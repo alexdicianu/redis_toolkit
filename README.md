@@ -20,10 +20,10 @@ $ ./redis-monitor start
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
-Once you get enough data, you can run the report.
+Once you get enough data, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
-$ ./redis-monitor report 
+$ ./redis-monitor report --name test_report
 Key                                                                                        Nr. keys   GET        SET        Hit Rate (%)    Avg Size (KB)   Lifetime (seconds)
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pantheon-redis:cache_token:*                                                               2          5          4          55              10.02           3.74
@@ -47,17 +47,17 @@ $ ./redis-monitor stop
 There are a few of options that can be passed to the report generator. They are described below. 
 
 ```
-usage: ./redis-monitor report [-h] [--no_cache] [-l LEVEL] [-p PREFIX]
+usage: ./redis-monitor report [-h] --name NAME [--regenerate] [--level LEVEL]
+                 [--prefix PREFIX]
 
 Generates a hit rate report from the Redis keys
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --no_cache            Flush the previous report from cache.
-  -l LEVEL, --level LEVEL
-                        How many levels deep the report should render.
-  -p PREFIX, --prefix PREFIX
-                        Filter by prefix.
+  -h, --help       show this help message and exit
+  --name NAME      The name of this report (e.g. --name clientname). This is going to be stored locally so that future reports take less time.
+  --regenerate     Regenerate the report.
+  --level LEVEL    How many levels deep the report should render.
+  --prefix PREFIX  Filter by prefix.
 ```
 
 ## Implementation details
