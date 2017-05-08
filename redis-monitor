@@ -33,6 +33,9 @@ monitor_start() {
         fi
     done
 
+    # Flush the previous data.
+    redisflush=`redis-cli flushall`
+    
     # Start injector container.
     docker run --rm -it -d --name redis_monitor_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_monitor_injector
 

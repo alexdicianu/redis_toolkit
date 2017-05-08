@@ -302,21 +302,19 @@ def redis_hgetall(keys):
 if __name__ == '__main__':
     
     parser = ArgumentParser(description='Generates a hit rate report from the Redis keys', formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--no_cache', action='store_true', help='Flush the previous report from cache.', required=False)
-    parser.add_argument('-l', '--level', help='How many levels deep the report should render.', required=False)
-    parser.add_argument('-p', '--prefix', help='Filter by prefix.', required=False)
+    parser.add_argument('--name', help='The name of this report (e.g. --name clientname). This is going to be stored locally so that future reports take less time.', required=True)
+    parser.add_argument('--regenerate', action='store_true', help='Regenerate the report.', required=False)
+    parser.add_argument('--level', help='How many levels deep the report should render.', required=False)
+    parser.add_argument('--prefix', help='Filter by prefix.', required=False)
     
     args = vars(parser.parse_args())
 
-    # How deep do we want to go.
-    levels = 3
-    if args['level']:
-        levels = int(args['level'])
+    # The report object will be stored locally.
+    if args['name']:
+        filename = '/data/' + args['name'] + '.pkl'
 
-    filename = '/data/tree.pkl'
-
-    # Flush the cache.
-    if args['no_cache']:
+    # Flush the local data to regenerate the report.
+    if args['regenerate']:
         if os.path.exists(filename): 
             os.remove(filename)
 
@@ -324,6 +322,18 @@ if __name__ == '__main__':
     prefix_filter = None
     if args['prefix']:
         prefix_filter = args['prefix']
+        # Remove the wildcard in case we detect it.
+        if prefix_filter.endswith('*'):
+            prefix_filter = prefix_filter[:-1]
+            
+    # How deep do we want to go.
+    levels = 3
+    # The argument takes priority.
+    if args['level']:
+        levels = int(args['level'])
+    elif prefix_filter is not None:
+        # Try to automatically determine this based on prefix (if we have any).
+        levels = len(prefix_filter.split(':')) + 1
 
     # Global connection pool to the local Redis.
     pool = redis.ConnectionPool(host='redis_monitor_db', port=6379, db=0)
