@@ -313,11 +313,6 @@ if __name__ == '__main__':
     if args['name']:
         filename = '/data/' + args['name'] + '.pkl'
 
-    # Flush the local data to regenerate the report.
-    if args['regenerate']:
-        if os.path.exists(filename): 
-            os.remove(filename)
-
     # Filter the report by prefix.
     prefix_filter = None
     if args['prefix']:
@@ -339,6 +334,11 @@ if __name__ == '__main__':
     pool = redis.ConnectionPool(host='redis_monitor_db', port=6379, db=0)
 
     root = None
+
+    # Flush the local data to regenerate the report.
+    if args['regenerate']:
+        if os.path.exists(filename): 
+            os.remove(filename)
 
     # Attempts to load from cache.
     if os.path.exists(filename):
