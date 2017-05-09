@@ -13,23 +13,8 @@ class MemoryReportNode(Node):
 
     def __init__(self, key):
 
-        # The number of GET operations.
-        #Node.get = 0
-
-        # The number of SET operations
-        #Node.set = 0
-
         # The key size. Non-leaf nodes have a total size calculated as the sum of all sizes.
         Node.size = 0
-
-        # The number of keys that actually have a size value. Useful for an accurate average key size.
-        #Node.size_count = 0
-
-        # The life time defined as the time between 2 consecutive sets.
-        #Node.lifetime = 0
-
-        # The number of keys that actually have a lifetime value. Useful for an accurate average life time.
-        #Node.lifetime_count = 0
 
         super(MemoryReportNode, self).__init__(key)
 
@@ -45,69 +30,24 @@ class MemoryReportNode(Node):
                 # This is where I query Redis for the key information (gets, set, hitrate, etc).
                 size = redis_get_size(child.key)
 
-                #print len(data)
-                #print data
-                #return
-                
                 child.leaf_count = 1
                 child.size       = size
-
-                #try: 
-                    #child.get  = int(data['get'])
-                    #child.set  = int(data['set'])
-                    # Only leaf nodes have fixed sizes and lifetimes (directly from Redis).
-                    #child.size = size
-                    #child.lifetime = float(data['lifetime'])
-                #except KeyError:
-                    #pass
-                    # Sometimes not all the keys are set ... Just using defaults.
-                #    sys.stderr.write('Error on line {}. {}, {}'.format(sys.exc_info()[-1].tb_lineno, type(e), e))
-
-                # For average calculation.
-                #if child.size > 0:
-                #    child.size_count = 1
-
-                #if child.lifetime > 0:
-                #    child.lifetime_count = 1
 
                 # Increment leaf count.
                 node.leaf_count += 1
 
-                # Increment the number of gets and sets.
-                #node.get += child.get
-                #node.set += child.set
-
                 # Increment the total size and size_count.
                 node.size += child.size
-                #if child.size > 0:
-                #    node.size_count += 1
-
-                #node.lifetime += child.lifetime
-                #if child.lifetime > 0:
-                #    node.lifetime_count += 1
-
+                
             else:
                 obj = self.populate(child)
                 
                 node.leaf_count += obj['leaf_count']
-
-                #node.get += obj['get']
-                #node.set += obj['set']
-
                 node.size += obj['size']
-                #node.size_count += obj['size_count']
-
-                #node.lifetime       += float(obj['lifetime'])
-                #node.lifetime_count += obj['lifetime_count']
 
         return {
             'leaf_count': node.leaf_count,
-            #'get': node.get,
-            #'set': node.set,
             'size': node.size
-            #'size_count': node.size_count,
-            #'lifetime': node.lifetime,
-            #'lifetime_count': node.lifetime_count,
         }
 
     def build_report(self, node=None, levels=3):
@@ -125,12 +65,8 @@ class MemoryReportNode(Node):
 
             report[key] = {
                 'key': key,
-                #'get': node.get,
-                #'set': node.set,
                 'leaf_count': node.leaf_count,
-                #'hitrate': self.get_hitrate(node),
-                'size': self.get_size(node),
-                #'lifetime': self.get_lifetime(node)
+                'size': self.get_size(node)
             }
         
         if node.children is not None:
@@ -142,54 +78,13 @@ class MemoryReportNode(Node):
         if node == None: node = self
 
         size = round(float(node.size) / float(1024), 2)
-
-        #if size <= 0: 
-        #    print node.key, node.size
-        #    return '0'
         return size
-
-    '''
-    def get_hitrate(self, node):
-        """Calculate the hitrate for the current node."""
-        if node == None: node = self
-
-        try:
-            hitrate = 0
-            gets = float(node.get)
-            sets = float(node.set)
-        except AttributeError:
-            return 0
-
-        if gets + sets > 0:
-            hitrate = (gets / (gets + sets)) * 100
-
-        return str(int(hitrate))
-
-    def get_lifetime(self, node):
-        """Proper format for the lifetime"""
-        if node == None: node = self
-
-        try:
-            if node.lifetime_count == 0: return 'n/a'
-        except AttributeError:
-            return 'n/a'
-
-        avg_lifetime = float(node.lifetime) / float(node.lifetime_count)
-
-        lifetime = round(float(avg_lifetime), 2)
-        if lifetime <= 0: return 'n/a'
-        return lifetime
-    '''
 
 def print_report_header():
     print
     print '{:<90}'.format('Key'),
     print '{:<10}'.format('Nr. keys'),
-    #print '{:<10}'.format('GET'),
-    #print '{:<10}'.format('SET'),
-    #print '{:<15}'.format('Hit Rate (%)'),
     print '{:<15}'.format('Size (KB)')
-    #print '{:<20}'.format('Lifetime (seconds)')
     print '{:<170}'.format('-' * 170)
 
 
@@ -314,11 +209,5 @@ if __name__ == '__main__':
 
         print "{:<90}".format(line['key']),
         print "{:<10}".format(line['leaf_count']),
-        #print "{:<10}".format(line['get']),
-        #print "{:<10}".format(line['set']),
-        #print "{:<15}".format(line['hitrate']),
         print "{:<15}".format(line['size'])
-        #print "{:<20}".format(line['lifetime'])
- 
-    
         
