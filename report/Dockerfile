@@ -14,13 +14,14 @@ RUN apt-get install -y \
 
 RUN pip install redis
 RUN pip install python-levenshtein
+#RUN pip install dill
 
 ADD run.sh /
 RUN chmod 770 /run.sh
 
-ADD scripts/report_tree.py /scripts/report.py
-RUN chmod 770 /scripts/report.py
+RUN mkdir -p /opt/tree/
+ADD src/ /opt/
 
-WORKDIR /scripts/
+ENV PYTHONPATH $PYTHONPATH:/opt/tree/
 
 CMD [ "/run.sh" ]

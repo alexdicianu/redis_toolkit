@@ -1,111 +1,37 @@
-import sys
-import os
 import redis
-import pickle
+import os
+
+import cPickle as pickle
 
 from argparse import ArgumentParser, RawTextHelpFormatter
-
 from collections import defaultdict, Counter
+from prefixtree import Node
 
-class Node(object):
 
-    '''
-    Each node has:
-        - a key which acts as a prefix for its children.
-        - a leaf_count property where the number of all leaf nodes is being stored (not children!!).
-        - a list of Node objects as children.
-    '''
-    
+class HitrateNode(Node):
+    """Extending the Node class with some custom attributes specific to the hit rate only."""
+
     def __init__(self, key):
-        """Sets some default values for the object.""" 
-
-        # The key name. If the key is not a leaf node, the name is it's prefix.
-        self.key = key
-
-        # How many leaves does the node have.
-        self.leaf_count = 0
-
-        # The node's children
-        self.children = []
 
         # The number of GET operations.
-        self.get = 0
+        Node.get = 0
 
         # The number of SET operations
-        self.set = 0
+        Node.set = 0
 
         # The key size. Non-leaf nodes have a total size calculated as the sum of all sizes.
-        self.size = 0
+        Node.size = 0
 
         # The number of keys that actually have a size value. Useful for an accurate average key size.
-        self.size_count = 0
+        Node.size_count = 0
 
         # The life time defined as the time between 2 consecutive sets.
-        self.lifetime = 0
+        Node.lifetime = 0
 
         # The number of keys that actually have a lifetime value. Useful for an accurate average life time.
-        self.lifetime_count = 0
+        Node.lifetime_count = 0
 
-    def add_child(self, key, parent_key=None):
-        """Adds a child node to the tree by recursively searching for its parent."""
-
-        child_keys = self.get_children_keys()
-        
-        # If I reached the parent.
-        if parent_key == self.key:
-            if key not in child_keys:
-                self.children.append(Node(key))
-        else:
-            if self.children is not None:
-                for child in self.children:
-                    # Check if we are on the right branch. We don't want to scan the entire tree.
-                    if parent_key.startswith(child.key):
-                        child.add_child(key, parent_key)
-
-    def build_tree(self, keys):
-        """Builds the tree from a list of keys and shows a progress bar."""
-
-        index = 0
-        total_keys = len(keys)
-
-        for key in keys:
-            prefixes = self.build_prefixes(key)
-            for i, prefix in enumerate(prefixes):
-                if i == 0: 
-                    parent_key = 'ROOT'
-                else:
-                    parent_key = prefixes[i-1]
-
-                root.add_child(prefix, parent_key)
-
-            index += 1
-            progress(index, total_keys)
-            
-    def split(self, key):
-        """Splits a key based a the colon character (:). Redis key buckets are separated by it. E.g. options:alloptions"""
-        return key.split(':')
-
-    def build_prefixes(self, key):
-        """
-        Builds a list of prefixes each of them one level bigger than its predecesor. 
-        Example:
-            - pantheon-redis
-            - pantheon-redis:cache_page
-            - pantheon-redis:cache_page:www.example.com
-        """
-        key_parts = self.split(key)
-
-        i = 0
-        n = len(key_parts)
-
-        prefixes = []
-        
-        for i in range(i, n):
-            key_part = ":".join(key_parts[:i+1])
-            prefixes.append(key_part)
-            i += 1
-
-        return prefixes
+        super(HitrateNode, self).__init__(key)
 
     def populate(self, node=None):
         """
@@ -197,85 +123,61 @@ class Node(object):
                 'get': node.get,
                 'set': node.set,
                 'leaf_count': node.leaf_count,
-                'hitrate': node.get_hitrate(),
-                'size': node.get_size(),
-                'lifetime': node.get_lifetime()
+                'hitrate': self.get_hitrate(node),
+                'size': self.get_size(node),
+                'lifetime': self.get_lifetime(node)
             }
         
         if node.children is not None:
             for child in node.children:
-                self.build_report(child, levels=levels - 1)
+                self.build_report(node=child, levels=levels - 1)
 
-    def get_children_keys(self):
-        """Returns a list of child key names for the current object."""
-        keys = []
-
-        for child in self.children:   
-            keys.append(child.key)
-
-        return keys
-
-    def is_leaf(self):
-        """Checks if the current node is a leaf (leaf nodes have no children)."""
-        if len(self.children) == 0:
-            return True
-        return False
-
-    def get_hitrate(self):
+    def get_hitrate(self, node):
         """Calculate the hitrate for the current node."""
-        hitrate = 0
-        gets = float(self.get)
-        sets = float(self.set)
+        if node == None: node = self
+
+        try:
+            hitrate = 0
+            gets = float(node.get)
+            sets = float(node.set)
+        except AttributeError:
+            return 0
 
         if gets + sets > 0:
             hitrate = (gets / (gets + sets)) * 100
 
         return str(int(hitrate))
 
-    def get_size(self):
+    def get_size(self, node):
         """Calculate the average size and convert it from Bytes to KB and round the result."""
+        if node == None: node = self
 
-        if self.size_count == 0: return 'n/a'
+        try:
+            if node.size_count == 0: return 'n/a'
+        except AttributeError:
+            return 'n/a'
 
-        avg_size = float(self.size) / float(self.size_count)
+        avg_size = float(node.size) / float(node.size_count)
         size = round(float(avg_size) / float(1024), 2)
 
         if size <= 0: return 'n/a'
         return size
 
-    def get_lifetime(self):
+    def get_lifetime(self, node):
         """Proper format for the lifetime"""
+        if node == None: node = self
 
-        if self.lifetime_count == 0: return 'n/a'
+        try:
+            if node.lifetime_count == 0: return 'n/a'
+        except AttributeError:
+            return 'n/a'
 
-        avg_lifetime = float(self.lifetime) / float(self.lifetime_count)
+        avg_lifetime = float(node.lifetime) / float(node.lifetime_count)
 
         lifetime = round(float(avg_lifetime), 2)
         if lifetime <= 0: return 'n/a'
         return lifetime
 
-
-def progress(count, total, suffix=''):
-    """Generic progressbar for showing group matching progress."""
-
-    bar_len = 60
-    filled_len = int(round(bar_len * count / float(total)))
-
-    percents = round(100.0 * count / float(total), 1)
-    bar = '#' * filled_len + '_' * (bar_len - filled_len)
-
-    sys.stdout.write('Crunching numbers [%s] %s%s %s\r' % (bar, percents, '%', suffix))
-    sys.stdout.flush()
-
-def save_object(obj, filename):
-    """Saves an object to a file in a binary form to act as a caching mechanism."""
-    with open(filename, 'wb') as output:
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
-
-def load_object(filename):
-    """Loads an object from file."""
-    with open(filename, 'rb') as input:
-        return pickle.load(input)
 
 def print_report_header():
     print
@@ -298,6 +200,16 @@ def redis_hgetall(keys):
     """Returns all the keys and their values from the Redis server in the global connection pool."""
     r = redis.Redis(connection_pool=pool)
     return r.hgetall(keys)
+
+def save_object(obj, filename):
+    """Saves an object to a file in a binary form to act as a caching mechanism."""
+    with open(filename, 'wb') as o:
+        pickle.dump(obj, o, pickle.HIGHEST_PROTOCOL)
+
+def load_object(filename):
+    """Loads an object from file."""
+    with open(filename, 'rb') as i:
+        return pickle.load(i)
 
 if __name__ == '__main__':
     
@@ -343,16 +255,15 @@ if __name__ == '__main__':
     # Attempts to load from cache.
     if os.path.exists(filename):
         root = load_object(filename)
-
+        
     if not root:
         keys = redis_keys('*')
 
-        root = Node('ROOT')
+        root = HitrateNode('ROOT')
         root.build_tree(keys)
 
         # Show more feedback. Populating takes a few extra seconds.
-        progress(100, 100, suffix='Almost there ...')
-
+        root.progress(100, 100, suffix='Almost there ...')
         root.populate()
 
         # Build the cache.
@@ -382,8 +293,6 @@ if __name__ == '__main__':
         print "{:<15}".format(line['hitrate']),
         print "{:<15}".format(line['size']),
         print "{:<20}".format(line['lifetime'])
-    
-    
-
+ 
     
         
