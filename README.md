@@ -1,4 +1,4 @@
-# Redis Monitor
+# Redis Toolkit
 Actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor), stores the commands Redis is running locally and then generates a report.
 
 ## Installation
