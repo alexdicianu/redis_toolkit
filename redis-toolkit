@@ -82,11 +82,42 @@ monitor_cleanup() {
 
 }
 
-# Running the report.
+# Running the monitor report.
 monitor_report() {
     # First argument is irrelevant.
     shift
     docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/hitrate_report.py $@
+}
+
+# Running the report.
+memory_dump() {
+    echo -n "Please enter the redis-cli string for the Redis server you wish to analyze: "
+    read redis_cli
+
+    # Stop redis first
+    docker stop redis_monitor_db
+    sleep 5
+
+    # Dump the remote redis db locally.
+    $redis_cli --rdb db/data/dump.rdb
+
+    # Start db container (kill any previous instance).
+    docker run --rm -it -d -p 6379:6379 --name redis_monitor_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_monitor_db
+
+    # Check if the local redis is available.
+    while [ 1 ]; do
+        pong=`redis-cli ping`
+        if [ "$pong" = "PONG" ]; then
+            break
+        else
+            sleep 1
+        fi
+    done
+}
+
+memory_report() {
+    shift
+    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/memory_report.py $@
 }
 
 ################################
@@ -95,7 +126,7 @@ monitor_report() {
 
 if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
-    echo "usage: redis-monitor [-h] commands
+    echo "usage: redis-toolkit [-h] commands
 
 Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor).
 
@@ -103,9 +134,10 @@ Commands:
     install     Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
     cleanup     Cleans up the installation.
 
-    start       Starts monitoring the target Redis server and injects data into a local Redis instance which will be used for reporting purposes.
-    stop        Stops the monitoring without deleting the local data.
-    report      Runs the report on the local instance."
+    monitor_start       Starts monitoring the target Redis server and injects data into a local Redis instance which will be used for reporting purposes.
+    monitor_stop        Stops the monitoring without deleting the local data.
+    monitor_report      Runs the report on the local instance.
+    memory_report       Runs the memory analysis report."
     exit 0
 fi
 
@@ -117,15 +149,20 @@ case "$1" in
         monitor_install ;;
     cleaup)
         monitor_cleanup ;;
-    start)
+    monitor_start)
         monitor_start ;;
-    stop) 
+    monitor_stop) 
         monitor_stop ;;
     ps) 
         monitor_ps ;;
-    report) 
-        monitor_report $@;; 
+    monitor_report)
+        monitor_report $@;;
+
+    memory_dump)
+        memory_dump;;
+    memory_report)
+        memory_report $@;;
 
     --) ;;
-    *) echo "redis-monitor $1 is not a recognized option" ;;
+    *) echo "redis-toolkit $1 is not a recognized option" ;;
 esac

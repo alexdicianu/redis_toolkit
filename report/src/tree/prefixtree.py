@@ -113,3 +113,22 @@ class Node(object):
     def build_report(self, node=None, levels=3):
         """Method used for building each type of report."""
         raise NotImplementedException("Please Implement this method")
+
+    def print_tree(self, node=None, level=0):
+        if node == None: node = self
+
+        #if level == 0: return
+
+        key = node.key
+        if not node.is_leaf():
+            key = key + ":*"
+
+        # Check to see if we print the key (only print the key and its parent).
+        if level == 0: print '|',
+        
+        print '_' * level + key
+        
+        if node.children is not None:
+            for child in node.children:
+                self.print_tree(node=child, level=level + 1)
+
