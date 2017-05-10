@@ -161,7 +161,7 @@ if __name__ == '__main__':
         levels = len(prefix_filter.split(':')) + 1
 
     # Global connection pool to the local Redis.
-    pool = redis.ConnectionPool(host='redis_monitor_db', port=6379, db=0)
+    pool = redis.ConnectionPool(host='redis_toolkit_db', port=6379, db=0)
 
     root = None
 

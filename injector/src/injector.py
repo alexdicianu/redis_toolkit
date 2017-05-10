@@ -33,7 +33,7 @@ def get_op(operation):
     return None
     
 if __name__ == '__main__':
-    pool = redis.ConnectionPool(host='redis_monitor_db', port=6379, db=0)
+    pool = redis.ConnectionPool(host='redis_toolkit_db', port=6379, db=0)
     r = redis.Redis(connection_pool=pool)
     
     for line in sys.stdin:
