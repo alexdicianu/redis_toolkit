@@ -26,7 +26,7 @@ $ ./redis-monitor monitor_start
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
-Once you get enough data, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
+Once you get enough data, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/hitrate_REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
 $ ./redis-monitor monitor_report --name test_report
@@ -49,11 +49,40 @@ When you're done, you can stop the the monitoring process via the command below.
 $ ./redis-monitor monitor_stop
 ```
 
-#### Options
-There are a few of options that can be passed to the report generator. They are described below. 
+### Memory report
+
+The first is to dump the Redis database locally via the command below.
 
 ```
-usage: ./redis-monitor report [-h] --name NAME [--regenerate] [--level LEVEL]
+$ ./redis-monitor dump
+Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
+```
+
+Once the dump is done. you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/memory_REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
+
+```
+$ ./redis-toolkit memory_report --name test_report
+Key                                                                                        Nr. keys   Size (MB)       Size (%)
+----------------------------------------------------------------------------------------------------------------------------------
+pantheon-redis:cache_block:*                                                               16689      170.19          42.04
+pantheon-redis:cache_menu:*                                                                9131       3.8             0.94
+pantheon-redis:cache_entity_node:*                                                         6648       89.15           22.02
+pantheon-redis:cache_entity_file:*                                                         6617       7.66            1.89
+pantheon-redis:cache_entity_field_collection_item:*                                        6226       20.78           5.13
+pantheon-redis:cache_entity_taxonomy_term:*                                                2282       1.74            0.43
+pantheon-redis:cache_path:*                                                                1947       6.64            1.64
+pantheon-redis:cache_views_data:*                                                          1664       60.33           14.9
+pantheon-redis:cache_permanent:*                                                           1391       0.59            0.15
+pantheon-redis:cache_page:*                                                                1142       16.27           4.02
+pantheon-redis:cache_entity_user:*                                                         708        2.32            0.57
+pantheon-redis:cache_advagg_info:*                                                         376        0.2             0.05
+```
+
+## Options
+There are a few of options that can be passed to the both report generators. They are described below. 
+
+```
+usage: ./redis-monitor monitor_report [-h] --name NAME [--regenerate] [--level LEVEL]
                  [--prefix PREFIX]
 
 Generates a hit rate report from the Redis keys
