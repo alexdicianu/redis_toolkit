@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # The network on which the containers will be built.
-NETWORK="redis_monitor"
+NETWORK="redis_toolkit"
 
 # Builds the necessary containers.
 monitor_install() {
     echo "Installing ..."
-    docker build -t $(whoami)/redis_monitor_db db/
-    docker build -t $(whoami)/redis_monitor_injector injector/
-    docker build -t $(whoami)/redis_monitor_report report/
+    docker build -t $(whoami)/redis_toolkit_db db/
+    docker build -t $(whoami)/redis_toolkit_injector injector/
+    docker build -t $(whoami)/redis_toolkit_report report/
 
     # Putting all containers on the same network.
     docker network rm $NETWORK
@@ -22,9 +22,9 @@ monitor_start() {
 
     # Start db container.
     echo "Preparing the environment ..."
-    stop_db=`docker stop redis_monitor_db`
+    stop_db=`docker stop redis_toolkit_db`
     
-    docker run --rm -it -d -p 6379:6379 --name redis_monitor_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_monitor_db
+    docker run --rm -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
 
     # Check if the local redis is available.
     while [ 1 ]; do
@@ -40,7 +40,7 @@ monitor_start() {
     redisflush=`redis-cli flushall`
     
     # Start injector container.
-    docker run --rm -it -d --name redis_monitor_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_monitor_injector
+    docker run --rm -it -d --name redis_toolkit_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_toolkit_injector
 
     monitor_ps
 }
@@ -54,9 +54,9 @@ monitor_stop() {
 
     case $answer in
         1) 
-            docker stop redis_monitor_injector ;;
+            docker stop redis_toolkit_injector ;;
         2) 
-            docker stop redis_monitor_injector redis_monitor_db ;;
+            docker stop redis_toolkit_injector redis_toolkit_db ;;
         *) 
             echo "Option not recognized." ;;
     esac
@@ -75,7 +75,7 @@ monitor_cleanup() {
 
     case $answer in
         Y|y|Yes|yes) 
-            docker rmi redis_monitor_db redis_monitor_injector redis_monitor_report ;;
+            docker rmi redis_toolkit_db redis_toolkit_injector redis_toolkit_report ;;
         N|n|No|no) 
             # Continuing the process. 
             ;;
@@ -89,7 +89,7 @@ monitor_cleanup() {
 hitrate_report() {
     # First argument is irrelevant.
     shift
-    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/hitrate.py $@
+    docker run --rm -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_toolkit_report python /opt/hitrate.py $@
 }
 
 # Running the report.
@@ -99,14 +99,14 @@ memory_dump() {
 
     # Stop redis first
     echo "Preparing to dump the Redis database locally ..."
-    stop_db=`docker stop redis_monitor_db`
+    stop_db=`docker stop redis_toolkit_db`
     sleep 5
 
     # Dump the remote redis db locally.
     $redis_cli --rdb db/data/dump.rdb
 
     # Start db container (kill any previous instance).
-    docker run --rm -it -d -p 6379:6379 --name redis_monitor_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_monitor_db
+    docker run --rm -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
 
     # Check if the local redis is available.
     while [ 1 ]; do
@@ -123,7 +123,7 @@ memory_dump() {
 
 memory_report() {
     shift
-    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/memory.py $@
+    docker run --rm -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_toolkit_report python /opt/memory.py $@
 }
 
 ################################
