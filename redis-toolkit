@@ -86,7 +86,7 @@ monitor_cleanup() {
 }
 
 # Running the monitor report.
-monitor_report() {
+hitrate_report() {
     # First argument is irrelevant.
     shift
     docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/hitrate.py $@
@@ -134,19 +134,20 @@ if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
     echo "usage: redis-toolkit [-h] commands
 
-Toolkit for actively monitoring, analyzing and reporting for your Redis database.
+Toolkit for actively monitoring, analyzing and reporting your Redis database.
 
 Commands:
     install             Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
     cleanup             Cleans up the installation.
     ps                  Show the running containers under this network.
 
-    monitor_start       Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
-    monitor_stop        Stops the monitoring with/without deleting the local data.
-    monitor_report      Runs the Hit Rate report on the local data gather by the monitoring process.
-
+    monitor            Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
+    stop                Stops the monitoring with/without deleting the local data.
     dump                Dumps the remote database into the local one for safer data crunching.
-    memory_report       Runs the memory analysis report."
+
+    hitrate             Runs the Hit Rate report on the local data gather by the monitoring process.
+    memory              Runs the memory analysis report."
+    
     exit 0
 fi
 
@@ -158,18 +159,20 @@ case "$1" in
         monitor_install ;;
     cleaup)
         monitor_cleanup ;;
-    monitor_start)
-        monitor_start ;;
-    monitor_stop) 
-        monitor_stop ;;
     ps) 
         monitor_ps ;;
-    monitor_report)
-        monitor_report $@;;
 
+    monitor)
+        monitor_start ;;
+    stop) 
+        monitor_stop ;;
     dump)
         memory_dump;;
-    memory_report)
+
+    
+    hitrate)
+        hitrate_report $@;;
+    memory)
         memory_report $@;;
 
     --) ;;

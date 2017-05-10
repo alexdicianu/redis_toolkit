@@ -131,7 +131,7 @@ def current_size_percentage(current_size, root_size):
 
 if __name__ == '__main__':
     
-    parser = ArgumentParser(description='Generates a memory utilization report from the Redis keys', formatter_class=RawTextHelpFormatter)
+    parser = ArgumentParser(description='Generates a memory utilization report for the Redis keys', formatter_class=RawTextHelpFormatter)
     parser.add_argument('--name', help='The name of this report (e.g. --name clientname). This is going to be stored locally so that future reports take less time.', required=True)
     parser.add_argument('--regenerate', action='store_true', help='Regenerate the report.', required=False)
     parser.add_argument('--level', help='How many levels deep the report should render.', required=False)
