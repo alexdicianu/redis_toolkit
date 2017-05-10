@@ -138,6 +138,7 @@ Toolkit for actively monitoring, analyzing and reporting your Redis database.
 
 Commands:
     install             Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
+    update              Updates the installation.
     cleanup             Cleans up the installation.
     ps                  Show the running containers under this network.
 
@@ -146,7 +147,7 @@ Commands:
     dump                Dumps the remote database into the local one for safer data crunching.
 
     hitrate             Runs the Hit Rate report on the local data gather by the monitoring process.
-    memory              Runs the memory analysis report."
+    memory              Runs the Memory analysis report."
     
     exit 0
 fi
@@ -155,7 +156,7 @@ fi
 docker --version >/dev/null 2>&1 || { echo >&2 "It looks like you don't have docker installed. Please visit this url to download & install it: https://www.docker.com/"; exit 1; }
 
 case "$1" in
-    install)
+    install|update)
         monitor_install ;;
     cleaup)
         monitor_cleanup ;;
