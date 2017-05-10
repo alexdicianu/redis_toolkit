@@ -1,4 +1,5 @@
 import sys
+import cPickle as pickle
 
 class Node(object):
     
@@ -103,7 +104,7 @@ class Node(object):
         percents = round(100.0 * count / float(total), 1)
         bar = '#' * filled_len + '_' * (bar_len - filled_len)
 
-        sys.stdout.write('Crunching numbers [%s] %s%s %s\r' % (bar, percents, '%', suffix))
+        sys.stdout.write('Building report tree [%s] %s%s %s\r' % (bar, percents, '%', suffix))
         sys.stdout.flush()
 
     def populate(self, node=None):
@@ -132,3 +133,13 @@ class Node(object):
             for child in node.children:
                 self.print_tree(node=child, level=level + 1)
 
+
+def save_object(obj, filename):
+    """Saves an object to a file in a binary form to act as a caching mechanism."""
+    with open(filename, 'wb') as o:
+        pickle.dump(obj, o, pickle.HIGHEST_PROTOCOL)
+
+def load_object(filename):
+    """Loads an object from file."""
+    with open(filename, 'rb') as i:
+        return pickle.load(i)

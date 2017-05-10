@@ -14,10 +14,6 @@ RUN apt-get install -y \
 
 RUN pip install redis
 RUN pip install python-levenshtein
-#RUN pip install dill
-
-#ADD run.sh /
-#RUN chmod 770 /run.sh
 
 RUN mkdir -p /opt/tree/
 ADD src/ /opt/

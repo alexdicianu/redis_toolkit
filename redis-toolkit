@@ -21,6 +21,9 @@ monitor_start() {
     read redis_cli
 
     # Start db container.
+    echo "Preparing the environment ..."
+    stop_db=`docker stop redis_monitor_db`
+    
     docker run --rm -it -d -p 6379:6379 --name redis_monitor_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_monitor_db
 
     # Check if the local redis is available.
@@ -86,7 +89,7 @@ monitor_cleanup() {
 monitor_report() {
     # First argument is irrelevant.
     shift
-    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/hitrate_report.py $@
+    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/hitrate.py $@
 }
 
 # Running the report.
@@ -95,7 +98,8 @@ memory_dump() {
     read redis_cli
 
     # Stop redis first
-    docker stop redis_monitor_db
+    echo "Preparing to dump the Redis database locally ..."
+    stop_db=`docker stop redis_monitor_db`
     sleep 5
 
     # Dump the remote redis db locally.
@@ -113,11 +117,13 @@ memory_dump() {
             sleep 1
         fi
     done
+
+    echo "Dump completed."
 }
 
 memory_report() {
     shift
-    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/memory_report.py $@
+    docker run --rm -it --name redis_monitor_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_monitor_report python /opt/memory.py $@
 }
 
 ################################
@@ -128,15 +134,18 @@ if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
     echo "usage: redis-toolkit [-h] commands
 
-Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor).
+Toolkit for actively monitoring, analyzing and reporting for your Redis database.
 
 Commands:
-    install     Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
-    cleanup     Cleans up the installation.
+    install             Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
+    cleanup             Cleans up the installation.
+    ps                  Show the running containers under this network.
 
-    monitor_start       Starts monitoring the target Redis server and injects data into a local Redis instance which will be used for reporting purposes.
-    monitor_stop        Stops the monitoring without deleting the local data.
-    monitor_report      Runs the report on the local instance.
+    monitor_start       Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
+    monitor_stop        Stops the monitoring with/without deleting the local data.
+    monitor_report      Runs the Hit Rate report on the local data gather by the monitoring process.
+
+    dump                Dumps the remote database into the local one for safer data crunching.
     memory_report       Runs the memory analysis report."
     exit 0
 fi
@@ -158,7 +167,7 @@ case "$1" in
     monitor_report)
         monitor_report $@;;
 
-    memory_dump)
+    dump)
         memory_dump;;
     memory_report)
         memory_report $@;;
