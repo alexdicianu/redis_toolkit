@@ -2,8 +2,8 @@
 Toolkit for actively monitoring, analyzing and reporting your Redis database.
 
 The toolkit has 2 types of reporting:
-* monitor_report - actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor), stores the commands Redis is running locally and then generates a report.
-* memory_report - dumps the contents of the Redis database locally and analyzes the memory distribution per key.
+* *hit rate* - actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor), stores the commands Redis is running locally and then generates a report.
+* *memory* - dumps the contents of the Redis database locally and analyzes the memory distribution per key.
 
 ## Installation
 A valid docker install is required. 
@@ -11,25 +11,25 @@ A valid docker install is required.
 Clone this repository, go to the clonned directory and run the commands below. The output should be displayed on screen.
 
 ```
-$ chmod +x ./redis-monitor
-$ ./redis-monitor install
+$ chmod +x ./redis-toolkit
+$ ./redis-toolkit install
 ```
 
 ## Usage
 
-### Monitor report
+### Hit Rate report
 
 First you'll have to start monitoring the target Redis server using the command below and following the instructions on screen.
 
 ```
-$ ./redis-monitor monitor_start
+$ ./redis-toolkit monitor
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
 Once you get enough data, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/hitrate_REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
-$ ./redis-monitor monitor_report --name test_report
+$ ./redis-toolkit hitrate --name test_report
 Key                                                                                        Nr. keys   GET        SET        Hit Rate (%)    Avg Size (KB)   Lifetime (seconds)
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pantheon-redis:cache_token:*                                                               2          5          4          55              10.02           3.74
@@ -46,7 +46,7 @@ pantheon-redis:cache_views:*                                                    
 When you're done, you can stop the the monitoring process via the command below.
 
 ```
-$ ./redis-monitor monitor_stop
+$ ./redis-toolkit stop
 ```
 
 ### Memory report
@@ -54,14 +54,14 @@ $ ./redis-monitor monitor_stop
 The first is to dump the Redis database locally via the command below.
 
 ```
-$ ./redis-monitor dump
+$ ./redis-toolkit dump
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
 Once the dump is done. you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/memory_REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
-$ ./redis-toolkit memory_report --name test_report
+$ ./redis-toolkit memory --name test_report
 Key                                                                                        Nr. keys   Size (MB)       Size (%)
 ----------------------------------------------------------------------------------------------------------------------------------
 pantheon-redis:cache_block:*                                                               16689      170.19          42.04
@@ -82,7 +82,7 @@ pantheon-redis:cache_advagg_info:*                                              
 There are a few of options that can be passed to the both report generators. They are described below. 
 
 ```
-usage: ./redis-monitor monitor_report [-h] --name NAME [--regenerate] [--level LEVEL]
+usage: ./redis-toolkit hitrate [-h] --name NAME [--regenerate] [--level LEVEL]
                  [--prefix PREFIX]
 
 Generates a hit rate report from the Redis keys
@@ -96,7 +96,12 @@ optional arguments:
 ```
 
 ## Implementation details
+
+### Hit Rate
 The output shows the key hitrate (calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`), the number of keys in the group, the number of GET and SET operations, the average size of each key only for SET operations and the key lifetime (calculated as the time difference between 2 consecutive SET operations - be careful, the only data we have is what we capture; not all keys will be SET twice during this interval). The result is ordered by hitrate asscending.
+
+### Memory
+The memory analysis report shows how big the keys are and how much that represents compared to the total amount of space occupied by the entire data set. Please be aware that Redis has has optimization algorithms that store data in a compressed format. Thus, the actual size in memory will be smaller.
 
 ## Running it in production
 `redis-cli MONITOR` is a debugging command that streams back every command processed by the Redis server. Running this on a production database comes with a performance cost that's hard to estimate. Use it with caution on production servers.
