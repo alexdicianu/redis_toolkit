@@ -72,6 +72,23 @@ class MemoryReportNode(Node):
         if node.children is not None:
             for child in node.children:
                 self.build_report(node=child, levels=levels - 1)
+
+    def build_leaf_report(self, node=None):
+        """Creates a report with just the leaves. Used mstly for debugging purposes."""
+        if node == None: node = self
+        
+        key = node.key
+        if node.is_leaf():
+            report[key] = {
+                'key': key,
+                'leaf_count': node.leaf_count,
+                'size': self.get_size(node)
+            }
+
+        
+        if node.children is not None:
+            for child in node.children:
+                self.build_leaf_report(node=child)
     
     def get_size(self, node):
         """Calculate the average size and convert it from Bytes to KB and round the result."""

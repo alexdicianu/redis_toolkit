@@ -82,11 +82,19 @@ if __name__ == '__main__':
                     obj['last_set'] = time.time()
                     obj['lifetime'] = 0
                 else:
-                    current_timestamp   = time.time()
-                    lifetime            = current_timestamp - obj['last_set']
+                    current_timestamp = time.time()
+                    new_lifetime      = current_timestamp - obj['last_set']
 
+                    # Check if we have an existing lifetime and calculate the average if there is one.
+                    current_lifetime = float(obj['lifetime'])
+                    if current_lifetime > 0:
+                        new_lifetime = float(new_lifetime)
+                        new_lifetime = (new_lifetime + current_lifetime) / 2
+                    
                     obj['last_set']     = current_timestamp
-                    obj['lifetime']     = lifetime
+                    obj['lifetime']     = new_lifetime
+
+
 
 
             r.hmset(key, obj)
