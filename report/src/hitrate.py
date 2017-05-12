@@ -17,7 +17,7 @@ class HitrateReportNode(Node):
         # The number of SET operations
         Node.set = 0
 
-        # The key size. Non-leaf nodes have a total size calculated as the sum of all sizes.
+        # The key size in Bytes. Non-leaf nodes have a total size calculated as the sum of all sizes.
         Node.size = 0
 
         # The number of keys that actually have a size value. Useful for an accurate average key size.
@@ -28,6 +28,9 @@ class HitrateReportNode(Node):
 
         # The number of keys that actually have a lifetime value. Useful for an accurate average life time.
         Node.lifetime_count = 0
+
+        # The total amount of network traffic (in Bytes) that went in and out of this node.
+        Node.network_traffic = 0
 
         super(HitrateReportNode, self).__init__(key)
 
@@ -59,9 +62,13 @@ class HitrateReportNode(Node):
                 # For average calculation.
                 if child.size > 0:
                     child.size_count = 1
-
+                    node.size_count += 1
+                    
+                    child.network_traffic = (float(child.get) + float(child.set)) * float(child.size)
+                    
                 if child.lifetime > 0:
                     child.lifetime_count = 1
+                    node.lifetime_count += 1
 
                 # Increment leaf count.
                 node.leaf_count += 1
@@ -72,12 +79,11 @@ class HitrateReportNode(Node):
 
                 # Increment the total size and size_count.
                 node.size += child.size
-                if child.size > 0:
-                    node.size_count += 1
-
+                
+                # Increment parent node lifetime.
                 node.lifetime += child.lifetime
-                if child.lifetime > 0:
-                    node.lifetime_count += 1
+
+                node.network_traffic += child.network_traffic
 
             else:
                 obj = self.populate(child)
@@ -93,6 +99,8 @@ class HitrateReportNode(Node):
                 node.lifetime       += float(obj['lifetime'])
                 node.lifetime_count += obj['lifetime_count']
 
+                node.network_traffic += float(obj['network_traffic'])
+
         return {
             'leaf_count': node.leaf_count,
             'get': node.get,
@@ -101,6 +109,7 @@ class HitrateReportNode(Node):
             'size_count': node.size_count,
             'lifetime': node.lifetime,
             'lifetime_count': node.lifetime_count,
+            'network_traffic': node.network_traffic
         }
 
     def build_report(self, node=None, levels=3):
@@ -123,7 +132,8 @@ class HitrateReportNode(Node):
                 'leaf_count': node.leaf_count,
                 'hitrate': self.get_hitrate(node),
                 'size': self.get_size(node),
-                'lifetime': self.get_lifetime(node)
+                'lifetime': self.get_lifetime(node),
+                'network_traffic': self.get_network_traffic(node)
             }
         
         if node.children is not None:
@@ -176,6 +186,16 @@ class HitrateReportNode(Node):
         if lifetime <= 0: return 'n/a'
         return lifetime
 
+    def get_network_traffic(self, node):
+        """Proper format for the network traffic"""
+        if node == None: node = self
+
+        try:
+            network_traffic = round(float(node.network_traffic) / 1024 / 1024, 2)
+        except AttributeError:
+            return 'n/a'
+
+        return network_traffic
 
 def print_report_header():
     print
@@ -185,8 +205,9 @@ def print_report_header():
     print '{:<10}'.format('SET'),
     print '{:<15}'.format('Hit Rate (%)'),
     print '{:<15}'.format('Avg Size (KB)'),
-    print '{:<20}'.format('Lifetime (seconds)')
-    print '{:<170}'.format('-' * 170)
+    print '{:<20}'.format('Lifetime (seconds)'),
+    print '{:<20}'.format('Network traffic (total MB)')
+    print '{:<170}'.format('-' * 190)
 
 
 def redis_keys(keys):
@@ -280,7 +301,8 @@ if __name__ == '__main__':
         print "{:<10}".format(line['set']),
         print "{:<15}".format(line['hitrate']),
         print "{:<15}".format(line['size']),
-        print "{:<20}".format(line['lifetime'])
+        print "{:<20}".format(line['lifetime']),
+        print "{:<20}".format(line['network_traffic'])
  
     
         
