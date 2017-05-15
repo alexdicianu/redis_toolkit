@@ -15,6 +15,14 @@ $ chmod +x ./redis-toolkit
 $ ./redis-toolkit install
 ```
 
+## Update
+The tool is under constant development. To update it to the latest version, just run the commands below.
+
+```
+$ git pull
+$ ./redis-toolkit update
+```
+
 ## Usage
 
 ### Hit Rate report
@@ -98,7 +106,7 @@ optional arguments:
 ## Implementation details
 
 ### Hit Rate
-The output shows the key hitrate (calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`), the number of keys in the group, the number of GET and SET operations, the average size of each key only for SET operations and the key lifetime (calculated as the time difference between 2 consecutive SET operations - be careful, the only data we have is what we capture; not all keys will be SET twice during this interval). The result is ordered by hitrate asscending.
+The output shows the key hitrate (calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`), the number of keys in the group, the number of GET and SET operations, the average size of each key only for SET operations and the key lifetime (calculated as the time passed since the last SET operation - be careful, the only data we have is what we capture; not all keys will be SET during this interval). The result is ordered by hitrate asscending.
 
 ### Memory
 The memory analysis report shows how big the keys are and how much that represents compared to the total amount of space occupied by the entire data set. Please be aware that Redis has has optimization algorithms that store data in a compressed format. Thus, the actual size in memory will be smaller.
