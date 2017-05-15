@@ -17,9 +17,9 @@ RUN pip install redis
 ADD run.sh /
 RUN chmod 770 /run.sh
 
-ADD scripts/injector.py /scripts/
-RUN chmod 770 /scripts/injector.py
+ADD src/injector.py /opt/
+RUN chmod 770 /opt/injector.py
 
-WORKDIR /scripts/
+WORKDIR /opt/
 
 CMD [ "/run.sh" ]

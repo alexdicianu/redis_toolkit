@@ -1,0 +1,181 @@
+#!/bin/bash
+
+# The network on which the containers will be built.
+NETWORK="redis_toolkit"
+
+# Builds the necessary containers.
+monitor_install() {
+    echo "Installing ..."
+    docker build -t $(whoami)/redis_toolkit_db db/
+    docker build -t $(whoami)/redis_toolkit_injector injector/
+    docker build -t $(whoami)/redis_toolkit_report report/
+
+    # Putting all containers on the same network.
+    docker network rm $NETWORK
+    docker network create $NETWORK
+}
+
+# Starts the db and injector containers charged with monitoring the remote Redis instance.
+monitor_start() {
+    echo -n "Please enter the redis-cli string for the Redis server you wish to monitor: "
+    read redis_cli
+
+    # Start db container.
+    echo "Preparing the environment ..."
+    stop_db=`docker stop redis_toolkit_db`
+    
+    docker run --rm -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
+
+    # Check if the local redis is available.
+    while [ 1 ]; do
+        pong=`redis-cli ping`
+        if [ "$pong" = "PONG" ]; then
+            break
+        else
+            sleep 1
+        fi
+    done
+
+    # Flush the previous data.
+    redisflush=`redis-cli flushall`
+    
+    # Start injector container.
+    docker run --rm -it -d --name redis_toolkit_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_toolkit_injector
+
+    monitor_ps
+}
+
+# Stopping the db and injector containers.
+monitor_stop() {
+    echo "[1] Stop the injection service and keep the local database for reporting purposes."
+    echo "[2] Stop the injection service and the local database. This will delete the collected data. Please make sure you have generated the report before you choose this option."
+    echo -n "Please choose enter your choice [1|2]: "
+    read answer
+
+    case $answer in
+        1) 
+            docker stop redis_toolkit_injector ;;
+        2) 
+            docker stop redis_toolkit_injector redis_toolkit_db ;;
+        *) 
+            echo "Option not recognized." ;;
+    esac
+    
+}
+
+# Show containers in this network namespace.
+monitor_ps() {
+    docker ps -f "network=$NETWORK"
+}
+
+# Clean up function.
+monitor_cleanup() {
+    echo -n "Please confirm that you wish to delete the containers from your computer [Y/n]: "
+    read answer
+
+    case $answer in
+        Y|y|Yes|yes) 
+            docker rmi redis_toolkit_db redis_toolkit_injector redis_toolkit_report ;;
+        N|n|No|no) 
+            # Continuing the process. 
+            ;;
+        *) 
+            echo "Option not recognized." ;;
+    esac
+
+}
+
+# Running the monitor report.
+hitrate_report() {
+    # First argument is irrelevant.
+    shift
+    docker run --rm -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_toolkit_report python /opt/hitrate.py $@
+}
+
+# Running the report.
+memory_dump() {
+    echo -n "Please enter the redis-cli string for the Redis server you wish to analyze: "
+    read redis_cli
+
+    # Stop redis first
+    echo "Preparing to dump the Redis database locally ..."
+    stop_db=`docker stop redis_toolkit_db`
+    sleep 5
+
+    # Dump the remote redis db locally.
+    $redis_cli --rdb db/data/dump.rdb
+
+    # Start db container (kill any previous instance).
+    docker run --rm -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
+
+    # Check if the local redis is available.
+    while [ 1 ]; do
+        pong=`redis-cli ping`
+        if [ "$pong" = "PONG" ]; then
+            break
+        else
+            sleep 1
+        fi
+    done
+
+    echo "Dump completed."
+}
+
+memory_report() {
+    shift
+    docker run --rm -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_toolkit_report python /opt/memory.py $@
+}
+
+################################
+##### Script starts here #######
+################################
+
+if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
+then
+    echo "usage: redis-toolkit [-h] commands
+
+Toolkit for actively monitoring, analyzing and reporting your Redis database.
+
+Commands:
+    install             Installs the tools and libraries needed for monitoring the remote server. Don't worry, it's all containers which you can clean up later.
+    update              Updates the installation.
+    cleanup             Cleans up the installation.
+    ps                  Show the running containers under this network.
+
+    monitor            Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
+    stop                Stops the monitoring with/without deleting the local data.
+    dump                Dumps the remote database into the local one for safer data crunching.
+
+    hitrate             Runs the Hit Rate report on the local data gather by the monitoring process.
+    memory              Runs the Memory analysis report."
+    
+    exit 0
+fi
+
+# Check if docker is installed and running.
+docker --version >/dev/null 2>&1 || { echo >&2 "It looks like you don't have docker installed. Please visit this url to download & install it: https://www.docker.com/"; exit 1; }
+
+case "$1" in
+    install|update)
+        monitor_install ;;
+    cleaup)
+        monitor_cleanup ;;
+    ps) 
+        monitor_ps ;;
+
+    monitor)
+        monitor_start ;;
+    stop) 
+        monitor_stop ;;
+    dump)
+        memory_dump;;
+
+    
+    hitrate)
+        hitrate_report $@;;
+    memory)
+        memory_report $@;;
+
+    --) ;;
+    *) echo "redis-toolkit $1 is not a recognized option" ;;
+esac

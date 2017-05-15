@@ -1,96 +1,115 @@
-# Redis Monitor
-Actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor).
+# Redis Toolkit
+Toolkit for actively monitoring, analyzing and reporting your Redis database.
 
-## Installation & Usage
+The toolkit has 2 types of reporting:
+* *hit rate* - actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor), stores the commands Redis is running locally and then generates a report.
+* *memory* - dumps the contents of the Redis database locally and analyzes the memory distribution per key.
+
+## Installation
 A valid docker install is required. 
 
 Clone this repository, go to the clonned directory and run the commands below. The output should be displayed on screen.
 
 ```
-$ chmod +x ./redis-monitor
-$ ./redis-monitor install
+$ chmod +x ./redis-toolkit
+$ ./redis-toolkit install
 ```
 
-## Generate the report
-There are 2 types of reports that can be generated: a prefix-only and a full report for all your keys. The default is the full report.
-
-### Running the prefix only report
-
-First you'll have to start monitoring the target Redis server using the command below and following the instructions.
+## Update
+The tool is under constant development. To update it to the latest version, just run the commands below.
 
 ```
-$ ./redis-monitor start
+$ git pull
+$ ./redis-toolkit update
+```
+
+## Usage
+
+### Hit Rate report
+
+First you'll have to start monitoring the target Redis server using the command below and following the instructions on screen.
+
+```
+$ ./redis-toolkit monitor
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
-Once you get enough data, you can run the report.
+Once you get enough data, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/hitrate_REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
-$ ./redis-monitor report --prefix_only
-Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)
-------------------------------------------------------------------------------------------------------------------------------------------------------
-wp_userlogins:600*                                                                         8          5          6          45              0.07
-comment:get_comment_child_ids:21099*                                                       280        284        255        52              0.09
-comment:2109928*                                                                           14         14         10         58              0.47
-post_meta:111*                                                                             20         31         12         72              0.25
-product_*                                                                                  96         100        21         82              0.01
-posts:1189*                                                                                10         15         0          100             0.0 
-```
-### Full report
-
-```
-$ ./redis-monitor report
-Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)           
-------------------------------------------------------------------------------------------------------------------------------------------------------
-comment:get_comments:df74a34315b3a68d6e6298fc14e62eea:0.317725001493527301                 1          1          1          50              0.13                
-comment:get_comments:df626590f0126c6a7b88dfc205d6f7bf:0.317725001493527301                 1          1          1          50              0.09                
-------------------------------------------------------------------------------------------------------------------------------------------------------
-comment:get_comments:df*                                                                   2          2          2          50              0.11 
-
-Key                                                                                        Count      GET        SET        Hit Rate (%)    Size (KB)           
-------------------------------------------------------------------------------------------------------------------------------------------------------
-keyword_relationships:238739                                                               1          1          0          100             0.0                 
-keyword_relationships:238735                                                               1          2          0          100             0.0                 
-keyword_relationships:238739                                                               1          1          0          100             0.0                 
-keyword_relationships:238730                                                               1          2          0          100             0.0                 
-keyword_relationships:238739                                                               1          1          0          100             0.0                 
-keyword_relationships:238732                                                               1          1          0          100             0.0                 
-------------------------------------------------------------------------------------------------------------------------------------------------------
-keyword_relationships:23873*                                                               6          8          0          100             0.0   
+$ ./redis-toolkit hitrate --name test_report
+Key                                                                                        Nr. keys   GET        SET        Hit Rate (%)    Avg Size (KB)   Lifetime (seconds)
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+pantheon-redis:cache_token:*                                                               2          5          4          55              10.02           3.74
+pantheon-redis:lock:*                                                                      1          3          2          60              0.09            3.67
+pantheon-redis:cache_path:*                                                                7          33         4          89              0.13            n/a
+pantheon-redis:cache_field:*                                                               10         112        5          95              3.95            63.74
+pantheon-redis:cache_bootstrap:*                                                           7          180        1          99              10.3            n/a
+pantheon-redis:cache_menu:*                                                                49         221        0          100             n/a             n/a
+pantheon-redis:cache:*                                                                     21         226        0          100             n/a             n/a
+pantheon-redis:cache_apachesolr:*                                                          1          1          0          100             n/a             n/a
+pantheon-redis:cache_views:*                                                               14         28         0          100             n/a             n/a
 ```
 
 When you're done, you can stop the the monitoring process via the command below.
 
 ```
-$ ./redis-monitor stop
+$ ./redis-toolkit stop
+```
+
+### Memory report
+
+The first is to dump the Redis database locally via the command below.
+
+```
+$ ./redis-toolkit dump
+Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
+```
+
+Once the dump is done. you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/data/memory_REPORT_NAME.pkl`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
+
+```
+$ ./redis-toolkit memory --name test_report
+Key                                                                                        Nr. keys   Size (MB)       Size (%)
+----------------------------------------------------------------------------------------------------------------------------------
+pantheon-redis:cache_block:*                                                               16689      170.19          42.04
+pantheon-redis:cache_menu:*                                                                9131       3.8             0.94
+pantheon-redis:cache_entity_node:*                                                         6648       89.15           22.02
+pantheon-redis:cache_entity_file:*                                                         6617       7.66            1.89
+pantheon-redis:cache_entity_field_collection_item:*                                        6226       20.78           5.13
+pantheon-redis:cache_entity_taxonomy_term:*                                                2282       1.74            0.43
+pantheon-redis:cache_path:*                                                                1947       6.64            1.64
+pantheon-redis:cache_views_data:*                                                          1664       60.33           14.9
+pantheon-redis:cache_permanent:*                                                           1391       0.59            0.15
+pantheon-redis:cache_page:*                                                                1142       16.27           4.02
+pantheon-redis:cache_entity_user:*                                                         708        2.32            0.57
+pantheon-redis:cache_advagg_info:*                                                         376        0.2             0.05
 ```
 
 ## Options
-There are a few of options that can be passed to the report generator. They are described below. The SIMILARITY_DEGREE parameter is used for calculating the similarity degree between these groups using the Levenshtein distance algorithm. You can set any value between 0 and 1:
-
-* values close to 0 will try to create many groups with very little differences between them 
-* values close to 1 will try to create less groups with many differences between strings but a smaller common prefix
-
-If you want to redirect the output to a file (`via > /path/to/report.log`) you should add the `--hide_progress_bar` to not polute the report with the progress bar information.
+There are a few of options that can be passed to the both report generators. They are described below. 
 
 ```
-usage: ./redis-monitor report [-h] [--prefix_only] [-s SIMILARITY_DEGREE]
-                 [--hide_progress_bar]
+usage: ./redis-toolkit hitrate [-h] --name NAME [--regenerate] [--level LEVEL]
+                 [--prefix PREFIX]
 
 Generates a hit rate report from the Redis keys
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --prefix_only         Only show the groups of keys.
-  -s SIMILARITY_DEGREE, --similarity_degree SIMILARITY_DEGREE
-                        Manually calibrate the similarity degree. Default is 0.5
-                            - values close to 0 will try to create many groups with very little differences between them.
-                            - values close to 1 will try to create less groups with many differences between strings but a smaller common prefix.
-  --hide_progress_bar   Hides the progress bar in case you want to redirect the output to a file.
+  -h, --help       show this help message and exit
+  --name NAME      The name of this report (e.g. --name clientname). This is going to be stored locally so that future reports take less time.
+  --regenerate     Regenerate the report.
+  --level LEVEL    How many levels deep the report should render.
+  --prefix PREFIX  Filter by prefix.
 ```
 
 ## Implementation details
-The output shows the key hitrate (calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`), the number of keys in the group, the number of GET and SET operations and the average size of each key only for SET operations. The result is ordered by hitrate asscending.
+
+### Hit Rate
+The output shows the key hitrate (calculated using the following formula `hitrate = (gets / (gets + sets)) * 100`), the number of keys in the group, the number of GET and SET operations, the average size of each key only for SET operations and the key lifetime (calculated as the time passed since the last SET operation - be careful, the only data we have is what we capture; not all keys will be SET during this interval). The result is ordered by hitrate asscending.
+
+### Memory
+The memory analysis report shows how big the keys are and how much that represents compared to the total amount of space occupied by the entire data set. Please be aware that Redis has has optimization algorithms that store data in a compressed format. Thus, the actual size in memory will be smaller.
 
 ## Running it in production
 `redis-cli MONITOR` is a debugging command that streams back every command processed by the Redis server. Running this on a production database comes with a performance cost that's hard to estimate. Use it with caution on production servers.

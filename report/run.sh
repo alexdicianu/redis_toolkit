@@ -1,2 +1,2 @@
 #!/bin/bash
-eval $(echo "python report.py $OPTIONS")
+eval $(echo "python /opt/hitrate.py $OPTIONS")

@@ -15,12 +15,9 @@ RUN apt-get install -y \
 RUN pip install redis
 RUN pip install python-levenshtein
 
-ADD run.sh /
-RUN chmod 770 /run.sh
+RUN mkdir -p /opt/tree/
+ADD src/ /opt/
 
-ADD scripts/report.py /scripts/
-RUN chmod 770 /scripts/report.py
+ENV PYTHONPATH $PYTHONPATH:/opt/tree/
 
-WORKDIR /scripts/
-
-CMD [ "/run.sh" ]
+CMD [ "python", "--version" ]
