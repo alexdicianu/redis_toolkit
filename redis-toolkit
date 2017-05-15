@@ -22,7 +22,7 @@ monitor_start() {
 
     # Start db container.
     echo "Preparing the environment ..."
-    stop_db=`docker stop redis_toolkit_db`
+    stop_db=`docker stop redis_toolkit_db > /dev/null 2>&1`
     
     docker run --rm -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
 
@@ -99,7 +99,7 @@ memory_dump() {
 
     # Stop redis first
     echo "Preparing to dump the Redis database locally ..."
-    stop_db=`docker stop redis_toolkit_db`
+    stop_db=`docker stop redis_toolkit_db > /dev/null 2>&1`
     sleep 5
 
     # Dump the remote redis db locally.
