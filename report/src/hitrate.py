@@ -221,7 +221,7 @@ def redis_hgetall(keys):
     return r.hgetall(keys)
 
 if __name__ == '__main__':
-    
+
     parser = ArgumentParser(description='Generates a hit rate report from the Redis keys', formatter_class=RawTextHelpFormatter)
     parser.add_argument('--name', help='The name of this report (e.g. --name clientname). This is going to be stored locally so that future reports take less time.', required=True)
     parser.add_argument('--regenerate', action='store_true', help='Regenerate the report.', required=False)
@@ -303,6 +303,4 @@ if __name__ == '__main__':
         print "{:<15}".format(line['size']),
         print "{:<20}".format(line['lifetime']),
         print "{:<20}".format(line['network_traffic'])
- 
-    
         

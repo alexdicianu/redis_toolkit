@@ -136,6 +136,10 @@ class Node(object):
 
 def save_object(obj, filename):
     """Saves an object to a file in a binary form to act as a caching mechanism."""
+    
+    # Trying to prevent hitting the recursion limit for lots of keys.
+    sys.setrecursionlimit(10000)
+
     with open(filename, 'wb') as o:
         pickle.dump(obj, o, pickle.HIGHEST_PROTOCOL)
 
