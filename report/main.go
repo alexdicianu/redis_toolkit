@@ -3,13 +3,15 @@ package main
 import (
     "fmt"
     "log"
-    "prefixtree"
-    "github.com/mediocregopher/radix.v2/redis"
-    "memoryreport"
     "encoding/gob"
     "os"
     "flag"
     "strings"
+
+    "github.com/mediocregopher/radix.v2/redis"
+    
+    "prefixtree"
+    "report"
 )
 
 // Encode via Gob to file. simple way to dump an already built object to a local file.
@@ -39,6 +41,7 @@ func main() {
     var level_filter int
 
     name       := flag.String("name", "", "The name of this report (e.g. -name clientname). This is going to be stored locally so that future reports take less time. (Required)")
+    reportType := flag.String("report", "", "The type of report you wish to generate. Possible values: memory, hitrate")
     level      := flag.Int("level", 3, "How many levels deep the report should render.")
     regenerate := flag.Bool("regenerate", false, "Regenerate the report.")
     prefix     := flag.String("prefix", "", "Filter by prefix.")
@@ -46,19 +49,20 @@ func main() {
     flag.Parse()
 
     // Parameter -name is mandatory.
-    if *name == "" {
-        fmt.Printf("Usage: ./main -name CLIENT_NAME [-level LEVEL] [-regenerate]")
+    if *name == "" || (*reportType != "memory" && *reportType != "hitrate") {
+        fmt.Printf("Usage: ./main -name CLIENT_NAME -report REPORT_TYPE [-level LEVEL] [-regenerate] [-prefix PREFIX:*]\n\n")
         flag.PrintDefaults()
         os.Exit(1)
     }
 
-    file := "./data/" + *name + ".gob"
+    file := "./data/" + *name + "." + *reportType + ".gob"
 
     // Flush the cache file if the -regenerate parameter is present.
     if *regenerate {
         err := os.Remove(file)
         if err != nil {
-            log.Fatal(err)
+            log.Print("No local cache found.")
+            //log.Print(err)
         }
     }
 
@@ -92,13 +96,21 @@ func main() {
             log.Fatal(err)
         }
 
+        // Build the bare prefix tree.
         root.BuildTree(keys)
-        root.Populate(conn)
+
+        // Populate the tree based on the type of report we wish to run.
+        prefixtree.ProgressBar(100, 100, "Populating the report. Please wait ...")
+        if *reportType == "memory" {
+            root.PopulateForMemoryReport(conn)
+        } else {
+            root.PopulateForHitrateReport(conn)
+        }
 
         fmt.Println()
 
+        // Save the report to the local cache.
         err = Save(file, &root)
-
         if err != nil {
             log.Print(err)
         }
@@ -110,6 +122,12 @@ func main() {
         }
     }
     
-    //root.DumpTree(1)
-    memoryreport.BuildReport(&root, level_filter, prefix_filter)
+    if *reportType == "memory" {
+        report.Memory(&root, level_filter, prefix_filter)    
+    } else {
+        report.Hitrate(&root, level_filter, prefix_filter)
+    }
+    
 }
+
+
