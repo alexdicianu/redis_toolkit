@@ -88,11 +88,11 @@ monitor_cleanup() {
 }
 
 # Running the monitor report.
-hitrate_report() {
+report() {
     # First argument is irrelevant.
     shift
     docker rm redis_toolkit_report > /dev/null 2>&1
-    docker run -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_toolkit_report python /opt/hitrate.py $@
+    docker run -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/app/data/:/go/src/app/data/ $(whoami)/redis_toolkit_report ./main $@
 }
 
 # Running the report.
@@ -109,7 +109,7 @@ memory_dump() {
     $redis_cli --rdb db/data/dump.rdb
 
     # Start db container (kill any previous instance).
-    docker rm redis_toolkit_db 2>&1
+    docker rm redis_toolkit_db > /dev/null 2>&1
     docker run -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
 
     # Check if the local redis is available.
@@ -123,12 +123,6 @@ memory_dump() {
     done
 
     echo "Dump completed."
-}
-
-memory_report() {
-    shift
-    docker rm redis_toolkit_report 2>&1
-    docker run -it --name redis_toolkit_report --network=$NETWORK -v $(pwd)/report/data/:/data/ $(whoami)/redis_toolkit_report python /opt/memory.py $@
 }
 
 ################################
@@ -147,12 +141,11 @@ Commands:
     cleanup             Cleans up the installation.
     ps                  Show the running containers under this network.
 
-    monitor            Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
+    monitor             Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
     stop                Stops the monitoring with/without deleting the local data.
     dump                Dumps the remote database into the local one for safer data crunching.
 
-    hitrate             Runs the Hit Rate report on the local data gather by the monitoring process.
-    memory              Runs the Memory analysis report."
+    report              Runs either the Hit Rate or Memory distribution report on the local data gather by the monitoring process."
     
     exit 0
 fi
@@ -176,10 +169,8 @@ case "$1" in
         memory_dump;;
 
     
-    hitrate)
-        hitrate_report $@;;
-    memory)
-        memory_report $@;;
+    report)
+        report $@;;
 
     --) ;;
     *) echo "redis-toolkit $1 is not a recognized option" ;;

@@ -235,6 +235,7 @@ func redisKeySize(conn *redis.Client, key string) int {
     keyType, err := conn.Cmd("TYPE", key).Str()
     
     if err != nil {
+        log.Print("CMD: TYPE, Key: ", key)
         log.Print(err)
     }
 
@@ -242,6 +243,7 @@ func redisKeySize(conn *redis.Client, key string) int {
         case "hash":
             data, err = conn.Cmd("HGETALL", key).List()
             if err != nil {
+                log.Print("CMD: HGETALL, Key: ", key)
                 log.Print(err)
             }
             for _, k := range data {
@@ -251,6 +253,7 @@ func redisKeySize(conn *redis.Client, key string) int {
         case "set":
             data, err = conn.Cmd("SMEMBERS", key).List()
             if err != nil {
+                log.Print("CMD: SMEMBERS, Key: ", key)
                 log.Print(err)
             }
 
@@ -261,6 +264,7 @@ func redisKeySize(conn *redis.Client, key string) int {
         case "string":
             data, err := conn.Cmd("GET", key).Str()
             if err != nil {
+                log.Print("CMD: GET, Key: ", key)
                 log.Print(err)
             }
 

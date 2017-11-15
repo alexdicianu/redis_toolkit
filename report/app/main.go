@@ -11,7 +11,8 @@ import (
     "github.com/mediocregopher/radix.v2/redis"
     
     "prefixtree"
-    "report"
+    "report/hitrate"
+    "report/memory"
 )
 
 // Encode via Gob to file. simple way to dump an already built object to a local file.
@@ -41,7 +42,7 @@ func main() {
     var level_filter int
 
     name       := flag.String("name", "", "The name of this report (e.g. -name clientname). This is going to be stored locally so that future reports take less time. (Required)")
-    reportType := flag.String("report", "", "The type of report you wish to generate. Possible values: memory, hitrate")
+    reportType := flag.String("type", "", "The type of report you wish to generate. Possible values: memory, hitrate")
     level      := flag.Int("level", 3, "How many levels deep the report should render.")
     regenerate := flag.Bool("regenerate", false, "Regenerate the report.")
     prefix     := flag.String("prefix", "", "Filter by prefix.")
@@ -85,7 +86,7 @@ func main() {
         // Connecting to the local Redis container and fetching all the keys for building the report.
         var keys []string
 
-        conn, err := redis.Dial("tcp", "localhost:6379")
+        conn, err := redis.Dial("tcp", "redis_toolkit_db:6379")
         if err != nil {
             log.Fatal(err)
         }
@@ -107,8 +108,6 @@ func main() {
             root.PopulateForHitrateReport(conn)
         }
 
-        fmt.Println()
-
         // Save the report to the local cache.
         err = Save(file, &root)
         if err != nil {
@@ -123,9 +122,9 @@ func main() {
     }
     
     if *reportType == "memory" {
-        report.Memory(&root, level_filter, prefix_filter)    
+        memory.RunMemoryReport(&root, level_filter, prefix_filter)    
     } else {
-        report.Hitrate(&root, level_filter, prefix_filter)
+        hitrate.RunHitrateReport(&root, level_filter, prefix_filter)
     }
     
 }
