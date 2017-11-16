@@ -1,23 +1,19 @@
-FROM ubuntu:16.04
+FROM golang:1.8
 MAINTAINER Pantheon Systems
 
 RUN apt-get update -y --fix-missing
-RUN apt-get install redis-server -y
 
-RUN apt-get install -y \
-    build-essential \
-    python \
-    python-dev \
-    python-pip \
-    && apt-get autoremove -y \
-    && apt-get clean
+WORKDIR /go/src/app
+COPY app/ .
 
-RUN pip install redis
-RUN pip install python-levenshtein
+ENV GOPATH /go/src/app
 
-RUN mkdir -p /opt/tree/
-ADD src/ /opt/
+RUN go get github.com/mediocregopher/radix.v2/redis
+RUN go get github.com/olekukonko/tablewriter
 
-ENV PYTHONPATH $PYTHONPATH:/opt/tree/
+RUN go build main.go
 
-CMD [ "python", "--version" ]
+ADD run.sh /
+RUN chmod 770 /run.sh
+
+CMD [ "/run.sh" ]

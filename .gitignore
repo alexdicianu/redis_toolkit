@@ -90,4 +90,6 @@ ENV/
 
 # Project stuff
 db/data/
-report/data/
+report/app/data/
+report/app/pkg/
+report/app/main
