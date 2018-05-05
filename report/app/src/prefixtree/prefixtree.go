@@ -8,7 +8,10 @@ import (
     "github.com/mediocregopher/radix.v2/redis"
     //"errors"
     "sort"
+    "sync"
 )
+
+var wait sync.WaitGroup
 
 type Node struct {
     // String representing the Redis key name.
@@ -42,7 +45,7 @@ type Node struct {
     Children []*Node
 }
 
-func BuildSubtree(subTree chan Node, keys []string) {
+func BuildSubtree(c chan Node, keys []string) {
     var parent_key string
 
     node := Node{Key: "ROOT"}
@@ -57,22 +60,28 @@ func BuildSubtree(subTree chan Node, keys []string) {
             node.addChild(prefix, parent_key)
         }
     }
-    subTree <- node
+    //fmt.Println("AAAA: ", len(node.Children[0].Children[0].Children))
+    c <- node
+    wait.Done()
 }
 
 func getNextBranchIndex(keys []string, startFromIndex int) int {
     
-    candidateIndex, keyCount, level := startFromIndex, len(keys), 0
+    candidateIndex, lastIndex, level := startFromIndex, len(keys) - 1, 0
 
     //fmt.Println("Level: ", level)
 
+    //if candidateIndex >= lastIndex {
+    //    return candidateIndex
+    //}
 
     for {
         //fmt.Println("candidateIndex: ", candidateIndex)
-        //fmt.Println("keyCount: ", keyCount)
+        //fmt.Println("lastIndex: ", lastIndex)
 
-        if candidateIndex >= keyCount - 1 {
+        if candidateIndex == lastIndex {
             // We reached the end without finding any difference. Go to the next level and reset the candidate index.
+            // @todo pull level out of this function for a better stop condition. if candidateIndex = startFromIndex return candidate and level.
             candidateIndex = startFromIndex
             level++
         }
@@ -85,164 +94,86 @@ func getNextBranchIndex(keys []string, startFromIndex int) int {
 
         if currentKeyParts[level] != nextKeyParts[level] {
             // Return the index for the next different key for better splitting.
+            //fmt.Println("Found candidate index: ", candidateIndex)
             return candidateIndex + 1
         }
 
-        candidateIndex += 1
+        candidateIndex++
+    }
+}
+
+func getBranchIndexes(keys []string) []int {
+    var branchIndexes []int
+
+    sort.Sort(sort.StringSlice(keys))
+
+    //for i, k := range keys {
+    //   fmt.Println(i, k)
+    //}
+
+    lastIndex := len(keys) - 1
+
+    startIndex := 0
+    for {
+        endIndex := getNextBranchIndex(keys, startIndex)
+        branchIndexes = append(branchIndexes, endIndex)
+
+        //fmt.Println("Start Index: ", startIndex)
+        //fmt.Println("End Index: ", endIndex)
+
+        //for i, k := range keys[startIndex:endIndex] {
+        //   fmt.Println(startIndex + i, k)
+        //}
+
+        //fmt.Println("=======================")
+
+        startIndex = endIndex
+
+        // Check if we reached the end of the list
+        if endIndex >= lastIndex {
+            return branchIndexes
+            //break
+        }
     }
 }
 
 // Builds the trie (or prefix tree) recursively after it decomposes the key by prefix.
 func (node *Node) BuildTreeFaster(keys []string) {
-    //var splitIndex int
-
-    sort.Sort(sort.StringSlice(keys))
     
-    //for i, k := range keys {
-    //   fmt.Println(i, k)
-    //}
+    branchIndexes := getBranchIndexes(keys)
 
-    totalKeys := len(keys)
-    
-    /*for i:=0; i<5; i++ {
-        splitIndex, e := getNextBranchIndex(keys, totalKeys / 2, i)
-        if e != nil {
-            fmt.Println("Failed splitting the keys.", e)
-        } else {
-            fmt.Println("worked, found split index:", splitIndex)
-            break
+    //fmt.Println(branchIndexes)
+
+    channelCount := len(branchIndexes)
+
+    wait.Add(channelCount)
+    c := make(chan Node, channelCount)
+
+    startIndex := 0
+    for i:=0; i<channelCount; i++ {
+        endIndex := branchIndexes[i]
+
+        go BuildSubtree(c, keys[startIndex:endIndex])
+
+        /*fmt.Println("=============================")
+        fmt.Println("Launched goroutine number: ", i)
+        fmt.Println("Start Index: ", startIndex)
+        fmt.Println("End Index: ", endIndex)
+        for i, k := range keys[startIndex:endIndex] {
+           fmt.Println(startIndex + i, k)
         }
+        fmt.Println("=============================")*/
+        
+        startIndex = endIndex
+    }
 
-    }*/
+    wait.Wait()
 
-    splitIndex := getNextBranchIndex(keys, totalKeys / 2)
-
-    //fmt.Printf("\nFound half index: %d\nkey: %s\n\n", splitIndex, keys[splitIndex])
-
-    t1 := make(chan Node)
-    t2 := make(chan Node)
-
-    go BuildSubtree(t1, keys[0:splitIndex])
-    go BuildSubtree(t2, keys[splitIndex+1:totalKeys])
-
-    for i := 0; i < 2; i++ {
-        // Rebuild the tree.
-        select {
-            case n1Ready := <-t1:
-                node.Children = append(node.Children, n1Ready.Children...)
-                //node.MergeTree(&n1Ready)
-            case n2Ready := <-t2:
-                node.Children = append(node.Children, n2Ready.Children...)
-                //node.MergeTree(&n2Ready)
-        }
+    for i:=0; i<channelCount; i++ {
+        n := <-c
+        node.Children = append(node.Children, n.Children...)
     }
 }
-
-// Merges the tree given as a parameter to the main tree.
-/*func (node *Node) MergeTree(subtree *Node) bool {
-    if len(subtree.Children) <= 0 {
-        return false
-    }
-
-    var targetChildren []string 
-    for _, n := range node.Children {
-        targetChildren = append(targetChildren, n.Key)
-        fmt.Println("Target children: ", targetChildren)
-    }
-
-    for _, child := range subtree.Children {
-        fmt.Println("Child.Key: ", child.Key)
-
-        if !contains(targetChildren, child.Key) {
-            fmt.Println("Adding key to node: ", child.Key, node.Key)
-            //node.Children = append(node.Children, &Node{Key: child.Key})
-            node.addChild(child.Key, node.Key)
-        } else {
-            fmt.Println("Going one level deeper")
-            for _, targetChild := range node.Children {
-                targetChild.MergeTree(child)
-            }
-        }
-    }
-    return true
-}*/
-
-/*func BuildHalfTree(keys []string, node *Node, wait sync.WaitGroup) {
-    var parent_key string
-
-    for _, key := range keys {
-        prefixes := buildPrefixes(key)
-        for i, prefix := range prefixes {
-            if i == 0 {
-                parent_key = "ROOT"
-            } else {
-                parent_key = prefixes[i-1]
-            }
-            //fmt.Println("Locking ", key)
-            node.Lock()
-            node.addChild(prefix, parent_key)
-            node.Unlock()
-            //fmt.Println("Unlocking ", key)
-        }
-    }
-    wait.Done()
-}*/
-
-/*func BuildTreeFastish(keys []string, node *Node) {
-    var parent_key string
-    var halfIndex int
-    var wait sync.WaitGroup
-    wait.Add(2)
-
-    totalKeys := len(keys)
-    
-    sort.Sort(sort.StringSlice(keys))
-    
-    //for _, k := range keys {
-    //    fmt.Println(k)
-    //}
-
-    candidateHalfIndex := totalKeys / 2
-    for {
-        currentKeyParts := strings.Split(keys[candidateHalfIndex], ":")
-        nextKeyParts    := strings.Split(keys[candidateHalfIndex + 1], ":")
-
-        currentKeyPrefix := strings.Join(currentKeyParts[:len(currentKeyParts) - 1], "")
-        nextKeyPrefix    := strings.Join(nextKeyParts[:len(nextKeyParts) - 1], "")
-
-        if currentKeyPrefix != nextKeyPrefix {
-            halfIndex = candidateHalfIndex
-            break
-        }
-
-        candidateHalfIndex += 1
-    }
-
-    //fmt.Printf("\nFound half index: %d, key: %s\n", halfIndex, keys[halfIndex])
-
-    //go BuildHalfTree(keys[0:halfIndex], node, wait)
-    //go BuildHalfTree(keys[halfIndex+1:totalKeys], node, wait)
-    go func(keys []string, node *Node){
-        for _, key := range keys {
-            prefixes := buildPrefixes(key)
-            for i, prefix := range prefixes {
-                if i == 0 {
-                    parent_key = "ROOT"
-                } else {
-                    parent_key = prefixes[i-1]
-                }
-                //fmt.Println("Locking ", key)
-                node.Lock()
-                addChild(prefix, parent_key, node)
-                node.Unlock()
-                //fmt.Println("Unlocking ", key)
-            }
-        }
-        wait.Done()
-    }(keys[0:halfIndex], node)
-    
-    
-}*/
 
 // Builds the trie (or prefix tree) recursively after it decomposes the key by prefix.
 func (node *Node) BuildTree(keys []string) {
