@@ -6,9 +6,10 @@ import (
     "strings"
     "log"
     "github.com/mediocregopher/radix.v2/redis"
-    //"errors"
+    "errors"
     "sort"
     "sync"
+    "time"
 )
 
 var wait sync.WaitGroup
@@ -45,8 +46,12 @@ type Node struct {
     Children []*Node
 }
 
-func BuildSubtree(c chan Node, keys []string) {
+func BuildSubtree(subtree chan Node, keys []string, progress chan float64) {
     var parent_key string
+
+    totalKeys := float64(len(keys))
+
+    //fmt.Println("\n")
 
     node := Node{Key: "ROOT"}
     for _, key := range keys {
@@ -58,126 +63,54 @@ func BuildSubtree(c chan Node, keys []string) {
                 parent_key = prefixes[i-1]
             }
             node.addChild(prefix, parent_key)
+
+            // Show progress.
+            progress <- (float64(i + 1) / totalKeys) * 100
+            //ProgressBar(float64(i + 1), float64(totalKeys))
         }
     }
-    //fmt.Println("AAAA: ", len(node.Children[0].Children[0].Children))
-    c <- node
+    subtree <- node
     wait.Done()
 }
 
-func getNextBranchIndex(keys []string, startFromIndex int) int {
-    
-    candidateIndex, lastIndex, level := startFromIndex, len(keys) - 1, 0
-
-    //fmt.Println("Level: ", level)
-
-    //if candidateIndex >= lastIndex {
-    //    return candidateIndex
-    //}
-
-    for {
-        //fmt.Println("candidateIndex: ", candidateIndex)
-        //fmt.Println("lastIndex: ", lastIndex)
-
-        if candidateIndex == lastIndex {
-            // We reached the end without finding any difference. Go to the next level and reset the candidate index.
-            // @todo pull level out of this function for a better stop condition. if candidateIndex = startFromIndex return candidate and level.
-            candidateIndex = startFromIndex
-            level++
-        }
-
-        currentKeyParts := strings.Split(keys[candidateIndex], ":")
-        nextKeyParts    := strings.Split(keys[candidateIndex + 1], ":")
-
-        //fmt.Println("candidate key: ", currentKeyParts[level])
-        //fmt.Println("next key: ", nextKeyParts[level])
-
-        if currentKeyParts[level] != nextKeyParts[level] {
-            // Return the index for the next different key for better splitting.
-            //fmt.Println("Found candidate index: ", candidateIndex)
-            return candidateIndex + 1
-        }
-
-        candidateIndex++
-    }
-}
-
-func getBranchIndexes(keys []string) []int {
-    var branchIndexes []int
-
-    sort.Sort(sort.StringSlice(keys))
-
-    //for i, k := range keys {
-    //   fmt.Println(i, k)
-    //}
-
-    lastIndex := len(keys) - 1
-
-    startIndex := 0
-    for {
-        endIndex := getNextBranchIndex(keys, startIndex)
-        branchIndexes = append(branchIndexes, endIndex)
-
-        //fmt.Println("Start Index: ", startIndex)
-        //fmt.Println("End Index: ", endIndex)
-
-        //for i, k := range keys[startIndex:endIndex] {
-        //   fmt.Println(startIndex + i, k)
-        //}
-
-        //fmt.Println("=======================")
-
-        startIndex = endIndex
-
-        // Check if we reached the end of the list
-        if endIndex >= lastIndex {
-            return branchIndexes
-            //break
-        }
-    }
-}
-
 // Builds the trie (or prefix tree) recursively after it decomposes the key by prefix.
-func (node *Node) BuildTreeFaster(keys []string) {
+func (node *Node) BuildTree(keys []string) {
     
     branchIndexes := getBranchIndexes(keys)
-
-    //fmt.Println(branchIndexes)
-
     channelCount := len(branchIndexes)
-
     wait.Add(channelCount)
-    c := make(chan Node, channelCount)
+
+    subtree  := make(chan Node, channelCount)
+    progress := make(chan float64)
+
+    start := time.Now()
 
     startIndex := 0
     for i:=0; i<channelCount; i++ {
         endIndex := branchIndexes[i]
 
-        go BuildSubtree(c, keys[startIndex:endIndex])
+        go BuildSubtree(subtree, keys[startIndex:endIndex], progress)
 
-        /*fmt.Println("=============================")
-        fmt.Println("Launched goroutine number: ", i)
-        fmt.Println("Start Index: ", startIndex)
-        fmt.Println("End Index: ", endIndex)
-        for i, k := range keys[startIndex:endIndex] {
-           fmt.Println(startIndex + i, k)
-        }
-        fmt.Println("=============================")*/
-        
         startIndex = endIndex
     }
+
+    go ShowProgressBar(progress, float64(len(keys)))
 
     wait.Wait()
 
     for i:=0; i<channelCount; i++ {
-        n := <-c
+        n := <-subtree
         node.Children = append(node.Children, n.Children...)
     }
+
+    fmt.Println("Built tree in: ", time.Since(start))
 }
 
 // Builds the trie (or prefix tree) recursively after it decomposes the key by prefix.
-func (node *Node) BuildTree(keys []string) {
+func (node *Node) BuildTreeDeprecated(keys []string) {
     var parent_key string
+
+    start := time.Now()
 
     totalKeys := len(keys)
 
@@ -194,6 +127,8 @@ func (node *Node) BuildTree(keys []string) {
         }
         ProgressBar(float64(i + 1), float64(totalKeys))
     }
+
+    fmt.Println("Built tree in: ", time.Since(start))
 }
 
 // Adds child nodes to the trie.
@@ -409,6 +344,60 @@ func redisKeySize(conn *redis.Client, key string) int {
     return object_size
 }
 
+func getNextBranchIndex(keys []string, startFromIndex int, level int) (int, error) {
+    
+    candidateIndex, lastIndex := startFromIndex, len(keys) - 1
+
+    if candidateIndex > lastIndex {
+        return candidateIndex, nil
+    }
+
+    for i:=0; i<lastIndex; i++ {
+        if candidateIndex >= lastIndex {
+            return candidateIndex + 1, nil
+        }
+
+        currentKeyParts := strings.Split(keys[candidateIndex], ":")
+        nextKeyParts    := strings.Split(keys[candidateIndex + 1], ":")
+
+        candidateIndex++
+        
+        if currentKeyParts[level] != nextKeyParts[level] {
+            // Return the index for the next different key for better splitting.
+            return candidateIndex, nil
+        }
+    }
+    
+    return -1, errors.New("Reached end of keys without finding a next candidate")
+}
+
+func getBranchIndexes(keys []string) []int {
+    var branchIndexes []int
+
+    sort.Sort(sort.StringSlice(keys))
+
+    level := 0
+    startIndex := 0
+    lastIndex  := len(keys) - 1
+
+    for {
+        endIndex, err := getNextBranchIndex(keys, startIndex, level)
+        if err != nil {
+            level++
+            continue
+        }
+
+        branchIndexes = append(branchIndexes, endIndex)
+        startIndex = endIndex
+        // Check if we reached the end of the list
+        if endIndex > lastIndex {
+            //return branchIndexes
+            break
+        }
+    }
+    return branchIndexes
+}
+
 // Builds a list of prefixes, each of them one level deeper than its predecesor. 
 // Example:
 //           - pantheon-redis
@@ -440,6 +429,28 @@ func contains(slice []string, item string) bool {
     return ok
 }
 
+func ShowProgressBar(progress chan float64, total float64 /*suffix ...string*/) {
+    var count float64
+
+    count = 0.0
+
+    for {
+        select {
+            case p := <- progress:
+                count += p
+                if count > 0 {
+                    if count <= total {
+                        ProgressBar(count, total)
+                    } else {
+                        ProgressBar(total, total)
+                    }
+                }
+            default:
+                break
+        }
+    }
+}
+
 // Shows visual progress in the form of a loading bar.
 func ProgressBar(count float64, total float64, suffix ...string) {
     barLen := 60
@@ -453,5 +464,4 @@ func ProgressBar(count float64, total float64, suffix ...string) {
     } else {
         fmt.Printf("Building report tree [%s] %d%% %s\r", bar, percents, suffix)
     }
-    
 }
