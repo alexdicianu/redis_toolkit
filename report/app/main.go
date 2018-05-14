@@ -8,7 +8,7 @@ import (
     "flag"
     "strings"
 
-    "github.com/mediocregopher/radix.v2/redis"
+    "github.com/mediocregopher/radix.v2/pool"
     
     "prefixtree"
     "report/hitrate"
@@ -86,10 +86,13 @@ func main() {
         // Connecting to the local Redis container and fetching all the keys for building the report.
         var keys []string
 
-        conn, err := redis.Dial("tcp", "redis_toolkit_db:6379")
+        //conn, err := redis.Dial("tcp", "127.0.0.1:6379")
+        connectionPool, err := pool.New("tcp", "redis_toolkit_db:6379", 1000)
+        conn, err           := connectionPool.Get()
         if err != nil {
             log.Fatal(err)
         }
+        //fmt.Println("Closing redis conn")
         defer conn.Close()
 
         keys, err = conn.Cmd("KEYS", "*").List()
@@ -98,15 +101,16 @@ func main() {
         }
 
         // Build the bare prefix tree.
-        root.BuildTree(keys)
+        root.BuildTree(keys, reportType, connectionPool)
+        //root.BuildTreeDeprecated(keys)
 
         // Populate the tree based on the type of report we wish to run.
-        prefixtree.ProgressBar(100, 100, "Populating the report. Please wait ...")
+        /*prefixtree.ProgressBar(100, 100, "Populating the report. Please wait ...")
         if *reportType == "memory" {
             root.PopulateForMemoryReport(conn)
         } else {
             root.PopulateForHitrateReport(conn)
-        }
+        }*/
 
         // Save the report to the local cache.
         err = Save(file, &root)
@@ -120,7 +124,7 @@ func main() {
             log.Print(err)
         }
     }
-    
+
     if *reportType == "memory" {
         memory.RunMemoryReport(&root, level_filter, prefix_filter)    
     } else {

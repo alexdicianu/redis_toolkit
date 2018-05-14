@@ -6,6 +6,7 @@ import (
     "strings"
     "log"
     "github.com/mediocregopher/radix.v2/redis"
+    "github.com/mediocregopher/radix.v2/pool"
     "errors"
     "sort"
     "sync"
@@ -46,15 +47,18 @@ type Node struct {
     Children []*Node
 }
 
-func BuildSubtree(subtree chan Node, keys []string, progress chan float64) {
+// Builds the a trie sub-structure recursively. 
+func Buildsubtree(subtreeCh chan Node, keys []string, progressCh chan int, reportType *string, connectionPool *pool.Pool) {
     var parent_key string
 
-    totalKeys := float64(len(keys))
-
-    //fmt.Println("\n")
+    conn, err := connectionPool.Get()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
 
     node := Node{Key: "ROOT"}
-    for _, key := range keys {
+    for j, key := range keys {
         prefixes := buildPrefixes(key)
         for i, prefix := range prefixes {
             if i == 0 {
@@ -63,55 +67,72 @@ func BuildSubtree(subtree chan Node, keys []string, progress chan float64) {
                 parent_key = prefixes[i-1]
             }
             node.addChild(prefix, parent_key)
-
-            // Show progress.
-            progress <- (float64(i + 1) / totalKeys) * 100
-            //ProgressBar(float64(i + 1), float64(totalKeys))
         }
+        // Show progress.
+        progressCh <- j
     }
-    subtree <- node
+    // Populate the subtree.
+    if *reportType == "memory" {
+        node.PopulateForMemoryReport(conn)
+    } else {
+        node.PopulateForHitrateReport(conn)
+    }
+
+    subtreeCh <- node
     wait.Done()
 }
 
 // Builds the trie (or prefix tree) recursively after it decomposes the key by prefix.
-func (node *Node) BuildTree(keys []string) {
+func (node *Node) BuildTree(keys []string, reportType *string, connectionPool *pool.Pool) {
     
     branchIndexes := getBranchIndexes(keys)
     channelCount := len(branchIndexes)
     wait.Add(channelCount)
 
-    subtree  := make(chan Node, channelCount)
-    progress := make(chan float64)
+    subtreeCh  := make(chan Node, channelCount)
+    progressCh := make(chan int, channelCount)
 
     start := time.Now()
 
     startIndex := 0
     for i:=0; i<channelCount; i++ {
         endIndex := branchIndexes[i]
-
-        go BuildSubtree(subtree, keys[startIndex:endIndex], progress)
-
+        go Buildsubtree(subtreeCh, keys[startIndex:endIndex], progressCh, reportType, connectionPool)
         startIndex = endIndex
     }
 
-    go ShowProgressBar(progress, float64(len(keys)))
+    go ShowProgressBar(progressCh, float64(len(keys)))
 
     wait.Wait()
 
     for i:=0; i<channelCount; i++ {
-        n := <-subtree
+        n := <-subtreeCh
         node.Children = append(node.Children, n.Children...)
     }
 
+    // Fix root data.
+    for _, child := range node.Children {
+        if *reportType == "memory" {
+            node.Size      += child.Size
+            node.LeafCount += child.LeafCount
+        } else {
+            node.Get += child.Get
+            node.Set += child.Set
+            node.Size += child.Size
+            node.SizeCount += child.SizeCount
+            node.LeafCount += child.LeafCount
+            node.Lifetime += child.Lifetime
+            node.LifetimeCount  += child.LifetimeCount
+            node.NetworkTraffic += child.NetworkTraffic
+        }
+    }
     fmt.Println("Built tree in: ", time.Since(start))
 }
 
 // Builds the trie (or prefix tree) recursively after it decomposes the key by prefix.
 func (node *Node) BuildTreeDeprecated(keys []string) {
     var parent_key string
-
     start := time.Now()
-
     totalKeys := len(keys)
 
     for i, key := range keys {
@@ -122,7 +143,6 @@ func (node *Node) BuildTreeDeprecated(keys []string) {
             } else {
                 parent_key = prefixes[i-1]
             }
-
             node.addChild(prefix, parent_key)
         }
         ProgressBar(float64(i + 1), float64(totalKeys))
@@ -176,9 +196,9 @@ func (node *Node) DumpTree(level int) {
     var info string
 
     if node.IsLeaf() {
-        info = " - (leaf)"
+        info = fmt.Sprintf(" - (leaf, size: %d)", node.Size)
     } else {
-        info = " - (leaves: " + strconv.Itoa(node.LeafCount) + ")"
+        info = fmt.Sprintf(" - (leaves: %d, size: %d)", node.LeafCount, node.Size)
     }
 
     fmt.Println(node.Key, info)
@@ -281,7 +301,7 @@ func (node *Node) PopulateForHitrateReport(conn *redis.Client) map[string]int {
             node.Lifetime       += r["Lifetime"]
             node.LifetimeCount  += r["LifetimeCount"]
 
-            node.NetworkTraffic += r["NetworkTraffic"]            
+            node.NetworkTraffic += r["NetworkTraffic"]
         }
     }
     
@@ -345,9 +365,7 @@ func redisKeySize(conn *redis.Client, key string) int {
 }
 
 func getNextBranchIndex(keys []string, startFromIndex int, level int) (int, error) {
-    
     candidateIndex, lastIndex := startFromIndex, len(keys) - 1
-
     if candidateIndex > lastIndex {
         return candidateIndex, nil
     }
@@ -356,18 +374,15 @@ func getNextBranchIndex(keys []string, startFromIndex int, level int) (int, erro
         if candidateIndex >= lastIndex {
             return candidateIndex + 1, nil
         }
-
         currentKeyParts := strings.Split(keys[candidateIndex], ":")
         nextKeyParts    := strings.Split(keys[candidateIndex + 1], ":")
 
         candidateIndex++
-        
         if currentKeyParts[level] != nextKeyParts[level] {
             // Return the index for the next different key for better splitting.
             return candidateIndex, nil
         }
     }
-    
     return -1, errors.New("Reached end of keys without finding a next candidate")
 }
 
@@ -405,9 +420,7 @@ func getBranchIndexes(keys []string) []int {
 //           - pantheon-redis:cache_page:www.example.com
 func buildPrefixes(key string) []string {
     var prefixes []string
-
     key_parts := strings.Split(key, ":")
-
     for i, key := range key_parts {
         if i == 0 {
             prefixes = append(prefixes, key)
@@ -415,7 +428,6 @@ func buildPrefixes(key string) []string {
             prefixes = append(prefixes, prefixes[i-1] + ":" + key)            
         }
     }
-
     return prefixes
 }
 
@@ -424,26 +436,22 @@ func contains(slice []string, item string) bool {
     for _, s := range slice {
         set[s] = struct{}{}
     }
-
     _, ok := set[item] 
     return ok
 }
 
-func ShowProgressBar(progress chan float64, total float64 /*suffix ...string*/) {
+func ShowProgressBar(progressCh chan int, total float64 /*suffix ...string*/) {
     var count float64
-
     count = 0.0
 
     for {
         select {
-            case p := <- progress:
-                count += p
-                if count > 0 {
-                    if count <= total {
-                        ProgressBar(count, total)
-                    } else {
-                        ProgressBar(total, total)
-                    }
+            case <- progressCh:
+                count++
+                if count <= total {
+                    ProgressBar(count, total)
+                } else {
+                    ProgressBar(total, total, "Populating the report. Please wait ...")
                 }
             default:
                 break
