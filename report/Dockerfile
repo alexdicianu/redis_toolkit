@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.11
 MAINTAINER Pantheon Systems
 
 RUN apt-get update -y --fix-missing
