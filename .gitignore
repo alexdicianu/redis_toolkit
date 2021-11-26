@@ -93,3 +93,6 @@ db/data/
 report/app/data/
 report/app/pkg/
 report/app/main
+
+# Mac specific
+.DS_Store

@@ -70,7 +70,7 @@ if __name__ == '__main__':
                     continue
                 
             except Exception as e:
-                print 'Error on line {}. Command: {}'.format(sys.exc_info()[-1].tb_lineno, line), type(e), e
+                print("Error on line {}. Command: {}".format(sys.exc_info()[-1].tb_lineno, line), type(e), e)
                 continue
 
             obj = r.hgetall(key)
@@ -123,6 +123,6 @@ if __name__ == '__main__':
             r.hmset(key, obj)
             
         except Exception as e:
-            print 'Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e
+            print("Error on line {}".format(sys.exc_info()[-1].tb_lineno), type(e), e)
             continue
 

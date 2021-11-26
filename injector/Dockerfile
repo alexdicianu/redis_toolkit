@@ -8,10 +8,14 @@ RUN apt-get install -y \
     build-essential \
     python \
     python-dev \
-    python-pip \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
     && apt-get autoremove -y \
     && apt-get clean
 
+RUN easy_install3 pip
 RUN pip install redis
 
 ADD run.sh /
