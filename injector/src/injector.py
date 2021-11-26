@@ -62,6 +62,8 @@ if __name__ == '__main__':
         try:
             try:
                 l = line.split()
+                if len(l) < 5:
+                    continue
                 operation, key = l[3].strip('"'), l[4].strip('"')
                 
                 # Only logging GET/SET calls.
@@ -83,6 +85,16 @@ if __name__ == '__main__':
                     "last_set": 0,
                     "lifetime": 0
                 }
+
+            if 'get' not in obj:
+                obj['get'] = 0
+            if 'set' not in obj:
+                obj['set'] = 0
+            if 'last_set' not in obj:
+                obj['last_set'] = 0
+
+            if 'size' not in obj:
+                obj['size'] = 0
                 
             if op is 'get':
                 obj['get'] = int(obj['get']) + 1
@@ -111,6 +123,7 @@ if __name__ == '__main__':
             elif op is 'del':
                 # Calculate lifetime until this moment and reset it.
                 last_set = float(obj['last_set'])
+                new_lifetime = 0
                 if last_set > 0:
                     # By default the new lifetime is the difference from when the object was last set until now.
                     new_lifetime = get_lifetime(last_set, obj['lifetime'])
