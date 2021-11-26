@@ -116,7 +116,6 @@ monitor_cleanup() {
         *) 
             echo "Option not recognized." ;;
     esac
-
 }
 
 # Running the monitor report.
@@ -157,6 +156,13 @@ memory_dump() {
     echo "Dump completed."
 }
 
+# Reset the setup.
+reset_setup() {
+    monitor_stop
+    monitor_cleanup
+    monitor_install
+}
+
 ################################
 ##### Script starts here #######
 ################################
@@ -172,11 +178,10 @@ Commands:
     update              Updates the installation.
     cleanup             Cleans up the installation.
     ps                  Show the running containers under this network.
-
     monitor             Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
     stop                Stops the monitoring with/without deleting the local data.
     dump                Dumps the remote database into the local one for safer data crunching.
-
+    reset               Reset the instance. 
     report              Runs either the Hit Rate or Memory distribution report on the local data gather by the monitoring process."
     
     exit 0
@@ -192,18 +197,16 @@ case "$1" in
         monitor_cleanup ;;
     ps) 
         monitor_ps ;;
-
     monitor)
         monitor_start ;;
     stop) 
         monitor_stop ;;
     dump)
         memory_dump;;
-
-    
+    reset)
+        reset_setup;;
     report)
         report $@;;
-
     --) ;;
     *) echo "redis-toolkit $1 is not a recognized option" ;;
 esac
