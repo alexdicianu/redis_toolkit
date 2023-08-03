@@ -8,9 +8,6 @@ WORKDIR /go/src/app
 ENV GOPATH /go/src/app
 
 COPY app/ .
-RUN go mod init main
-
-RUN pwd
 
 RUN go install github.com/olekukonko/tablewriter@latest
 RUN go install github.com/mediocregopher/radix.v2/redis@latest
