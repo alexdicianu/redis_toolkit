@@ -6,8 +6,11 @@ NETWORK="redis_toolkit"
 # Builds the necessary containers.
 monitor_install() {
     echo "Installing ..."
+    echo "Building the report container ..."
     docker build -t $(whoami)/redis_toolkit_db db/
+    echo "Building the injector container ..."
     docker build -t $(whoami)/redis_toolkit_injector injector/
+    echo "Building the report container ..."
     docker build -t $(whoami)/redis_toolkit_report report/
 
     # Putting all containers on the same network.
@@ -22,17 +25,31 @@ monitor_start() {
 
     # Start db container.
     echo "Preparing the environment ..."
-    stop_db=`docker stop redis_toolkit_db > /dev/null 2>&1`
-    
-    docker rm redis_toolkit_db > /dev/null
+    if [ $( docker ps -a | grep redis_toolkit_db | wc -l ) -gt 0 ]; then
+        echo "Stopping redis_toolkit_db container ..."
+        stop_db=`docker stop redis_toolkit_db > /dev/null 2>&1`
+
+        echo "Removing redis_toolkit_db container ..."
+        docker rm redis_toolkit_db > /dev/null
+    else
+        echo "redis_toolkit_db container does not exist"
+    fi
+
     docker run -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
+    if [ $( docker ps -a | grep redis_toolkit_db | wc -l ) -gt 0 ]; then
+        echo "Successfully provisioned redis_toolkit_db!"
+    else 
+        echo "Can't find redis_toolkit_db container."
+    fi
 
     # Check if the local redis is available.
     while [ 1 ]; do
         pong=`redis-cli ping`
         if [ "$pong" = "PONG" ]; then
+            echo "Redis is recheable."
             break
         else
+            echo "Redis is unrecheable."
             sleep 1
         fi
     done
@@ -41,8 +58,20 @@ monitor_start() {
     redisflush=`redis-cli flushall`
     
     # Start injector container.
-    docker rm redis_toolkit_injector > /dev/null 2>&1
+    if [ $( docker ps -a | grep redis_toolkit_injector | wc -l ) -gt 0 ]; then
+        docker rm redis_toolkit_injector > /dev/null 2>&1
+    else 
+        echo "Can't find redis_toolkit_injector container."
+        echo "Creating redis_toolkit_injector container."
+    fi
     docker run -it -d --name redis_toolkit_injector --network=$NETWORK -e "REDIS_CLI=$redis_cli" $(whoami)/redis_toolkit_injector
+
+    # Verify the existence of redis_toolkit_injector container.
+    if [ $( docker ps -a | grep redis_toolkit_injector | wc -l ) -gt 0 ]; then
+        echo "Successfully provisioned redis_toolkit_injector!"
+    else 
+        echo "Can't find redis_toolkit_injector container."
+    fi
 
     monitor_ps
 }
@@ -56,8 +85,10 @@ monitor_stop() {
 
     case $answer in
         1) 
+            echo "Shutting down redis_toolkit_injector container."
             docker stop redis_toolkit_injector ;;
         2) 
+            echo "Shutting down redis_toolkit_injector and redis_toolkit_db containers."
             docker stop redis_toolkit_injector redis_toolkit_db ;;
         *) 
             echo "Option not recognized." ;;
@@ -77,14 +108,17 @@ monitor_cleanup() {
 
     case $answer in
         Y|y|Yes|yes) 
-            docker rmi redis_toolkit_db redis_toolkit_injector redis_toolkit_report ;;
+            echo "Deleting the containers ..."
+            docker rm redis_toolkit_db redis_toolkit_injector redis_toolkit_report
+            echo "Deleting the images ..."
+            docker rmi $(whoami)/redis_toolkit_db $(whoami)/redis_toolkit_injector $(whoami)/redis_toolkit_report
+            echo "All cleaned up." ;;
         N|n|No|no) 
             # Continuing the process. 
             ;;
         *) 
             echo "Option not recognized." ;;
     esac
-
 }
 
 # Running the monitor report.
@@ -125,6 +159,13 @@ memory_dump() {
     echo "Dump completed."
 }
 
+# Reset the setup.
+reset_setup() {
+    monitor_stop
+    monitor_cleanup
+    monitor_install
+}
+
 ################################
 ##### Script starts here #######
 ################################
@@ -140,11 +181,10 @@ Commands:
     update              Updates the installation.
     cleanup             Cleans up the installation.
     ps                  Show the running containers under this network.
-
     monitor             Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
     stop                Stops the monitoring with/without deleting the local data.
     dump                Dumps the remote database into the local one for safer data crunching.
-
+    reset               Reset the instance. 
     report              Runs either the Hit Rate or Memory distribution report on the local data gather by the monitoring process."
     
     exit 0
@@ -156,22 +196,20 @@ docker --version >/dev/null 2>&1 || { echo >&2 "It looks like you don't have doc
 case "$1" in
     install|update)
         monitor_install ;;
-    cleaup)
+    cleanup)
         monitor_cleanup ;;
     ps) 
         monitor_ps ;;
-
     monitor)
         monitor_start ;;
     stop) 
         monitor_stop ;;
     dump)
         memory_dump;;
-
-    
+    reset)
+        reset_setup;;
     report)
         report $@;;
-
     --) ;;
     *) echo "redis-toolkit $1 is not a recognized option" ;;
 esac
