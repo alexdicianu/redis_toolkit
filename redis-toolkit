@@ -6,8 +6,11 @@ NETWORK="redis_toolkit"
 # Builds the necessary containers.
 monitor_install() {
     echo "Installing ..."
+    echo "Building the report container ..."
     docker build -t $(whoami)/redis_toolkit_db db/
+    echo "Building the injector container ..."
     docker build -t $(whoami)/redis_toolkit_injector injector/
+    echo "Building the report container ..."
     docker build -t $(whoami)/redis_toolkit_report report/
 
     # Putting all containers on the same network.

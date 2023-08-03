@@ -1,7 +1,7 @@
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 MAINTAINER Pantheon Systems
 
-RUN apt-get update -y --fix-missing
+RUN apt-get update -y 
 RUN apt-get install redis-server -y
 
 RUN apt-get install -y \
@@ -15,7 +15,6 @@ RUN apt-get install -y \
     && apt-get autoremove -y \
     && apt-get clean
 
-RUN easy_install3 pip
 RUN pip install redis
 
 ADD run.sh /

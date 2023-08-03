@@ -1,15 +1,22 @@
-FROM golang:1.8
+FROM golang:1.20.0
 MAINTAINER Pantheon Systems
 
-RUN apt-get update -y --fix-missing
+RUN apt-get update -y 
 
 WORKDIR /go/src/app
-COPY app/ .
 
 ENV GOPATH /go/src/app
 
-RUN go get github.com/mediocregopher/radix.v2/redis
-RUN go get github.com/olekukonko/tablewriter
+COPY app/ .
+RUN go mod init main
+
+RUN pwd
+
+RUN go install github.com/olekukonko/tablewriter@latest
+RUN go install github.com/mediocregopher/radix.v2/redis@latest
+
+ENV GO111MODULE=on
+ENV GOFLAGS=-mod=vendor
 
 RUN go build main.go
 
