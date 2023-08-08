@@ -49,6 +49,7 @@ $ ./redis-toolkit report -name NAME -type hitrate -level 2
 | wpseo:*                                |       12 |     24 |    22 |          52 |      0.07 |             273.25 |                 0.00 |
 | wp_userlogins:*                        |       75 |    673 |   534 |          55 |      0.12 |              68.32 |                 0.13 |
 ```
+NOTE: You can play with different levels like `-level 2`, `-level 3`, `-level 4`, or even `-level 5`.
 
 When you're done, you can stop the the monitoring process via the command below.
 
@@ -65,7 +66,7 @@ $ ./redis-toolkit dump
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
-Once the dump is done. you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/app/data/NAME.memoy.gob`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
+Once the dump is done, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/app/data/NAME.memoy.gob`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
 $ ./redis-toolkit report -type memory -name NAME
