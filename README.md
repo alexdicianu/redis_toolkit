@@ -49,7 +49,11 @@ $ ./redis-toolkit report -name NAME -type hitrate -level 2
 | wpseo:*                                |       12 |     24 |    22 |          52 |      0.07 |             273.25 |                 0.00 |
 | wp_userlogins:*                        |       75 |    673 |   534 |          55 |      0.12 |              68.32 |                 0.13 |
 ```
-NOTE: You can play with different levels like `-level 2`, `-level 3`, `-level 4`, or even `-level 5`.
+NOTE: You can play with different levels like `-level 2`, `-level 3`, `-level 4`, or even `-level 5`. Additionally, you can play with `--prefix` option. 
+For example to filter `post_format_relationships:*` only, you can run the command:
+```
+./redis-toolkit report -name NAME -type hitrate --prefix="post_format_relationships:*"
+```
 
 When you're done, you can stop the the monitoring process via the command below.
 
