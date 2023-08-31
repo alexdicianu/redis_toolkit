@@ -14,7 +14,7 @@ monitor_install() {
     docker build -t $(whoami)/redis_toolkit_report report/
 
     # Putting all containers on the same network.
-    docker network rm $NETWORK
+    docker network rm $NETWORK 2>/dev/null
     docker network create $NETWORK
 }
 
