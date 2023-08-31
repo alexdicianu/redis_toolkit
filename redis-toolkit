@@ -59,8 +59,11 @@ monitor_start() {
 
     # Start injector container.
     if [ $( docker ps -a | grep redis_toolkit_injector | wc -l ) -gt 0 ]; then
-        docker rm redis_toolkit_injector > /dev/null 2>&1
-    else 
+        echo "Stopping redis_toolkit_injector container ..."
+        stop_db=`docker stop redis_toolkit_injector > /dev/null 2>&1`
+        echo "Removing redis_toolkit_injector container ..."
+        docker rm redis_toolkit_injector > /dev/null
+    else
         echo "Can't find redis_toolkit_injector container."
         echo "Creating redis_toolkit_injector container."
     fi
