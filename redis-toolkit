@@ -14,7 +14,7 @@ monitor_install() {
     docker build -t $(whoami)/redis_toolkit_report report/
 
     # Putting all containers on the same network.
-    docker network rm $NETWORK
+    docker network rm $NETWORK 2>/dev/null
     docker network create $NETWORK
 }
 
@@ -38,7 +38,7 @@ monitor_start() {
     docker run -it -d -p 6379:6379 --name redis_toolkit_db -v $(pwd)/db/data/:/var/lib/redis/ --network=$NETWORK $(whoami)/redis_toolkit_db
     if [ $( docker ps -a | grep redis_toolkit_db | wc -l ) -gt 0 ]; then
         echo "Successfully provisioned redis_toolkit_db!"
-    else 
+    else
         echo "Can't find redis_toolkit_db container."
     fi
 
@@ -46,21 +46,24 @@ monitor_start() {
     while [ 1 ]; do
         pong=`redis-cli ping`
         if [ "$pong" = "PONG" ]; then
-            echo "Redis is recheable."
+            echo "Redis is reacheable."
             break
         else
-            echo "Redis is unrecheable."
+            echo "Redis is unreacheable."
             sleep 1
         fi
     done
 
     # Flush the previous data.
     redisflush=`redis-cli flushall`
-    
+
     # Start injector container.
     if [ $( docker ps -a | grep redis_toolkit_injector | wc -l ) -gt 0 ]; then
-        docker rm redis_toolkit_injector > /dev/null 2>&1
-    else 
+        echo "Stopping redis_toolkit_injector container ..."
+        stop_db=`docker stop redis_toolkit_injector > /dev/null 2>&1`
+        echo "Removing redis_toolkit_injector container ..."
+        docker rm redis_toolkit_injector > /dev/null
+    else
         echo "Can't find redis_toolkit_injector container."
         echo "Creating redis_toolkit_injector container."
     fi
@@ -69,7 +72,7 @@ monitor_start() {
     # Verify the existence of redis_toolkit_injector container.
     if [ $( docker ps -a | grep redis_toolkit_injector | wc -l ) -gt 0 ]; then
         echo "Successfully provisioned redis_toolkit_injector!"
-    else 
+    else
         echo "Can't find redis_toolkit_injector container."
     fi
 
@@ -84,16 +87,16 @@ monitor_stop() {
     read answer
 
     case $answer in
-        1) 
+        1)
             echo "Shutting down redis_toolkit_injector container."
             docker stop redis_toolkit_injector ;;
-        2) 
+        2)
             echo "Shutting down redis_toolkit_injector and redis_toolkit_db containers."
             docker stop redis_toolkit_injector redis_toolkit_db ;;
-        *) 
+        *)
             echo "Option not recognized." ;;
     esac
-    
+
 }
 
 # Show containers in this network namespace.
@@ -107,16 +110,16 @@ monitor_cleanup() {
     read answer
 
     case $answer in
-        Y|y|Yes|yes) 
+        Y|y|Yes|yes)
             echo "Deleting the containers ..."
             docker rm redis_toolkit_db redis_toolkit_injector redis_toolkit_report
             echo "Deleting the images ..."
             docker rmi $(whoami)/redis_toolkit_db $(whoami)/redis_toolkit_injector $(whoami)/redis_toolkit_report
             echo "All cleaned up." ;;
-        N|n|No|no) 
-            # Continuing the process. 
+        N|n|No|no)
+            # Continuing the process.
             ;;
-        *) 
+        *)
             echo "Option not recognized." ;;
     esac
 }
@@ -184,9 +187,9 @@ Commands:
     monitor             Actively monitors a redis database using the redis-cli monitor command (https://redis.io/commands/monitor) and injects data into a local Redis instance which will be used for reporting purposes.
     stop                Stops the monitoring with/without deleting the local data.
     dump                Dumps the remote database into the local one for safer data crunching.
-    reset               Reset the instance. 
+    reset               Reset the instance.
     report              Runs either the Hit Rate or Memory distribution report on the local data gather by the monitoring process."
-    
+
     exit 0
 fi
 
@@ -198,11 +201,11 @@ case "$1" in
         monitor_install ;;
     cleanup)
         monitor_cleanup ;;
-    ps) 
+    ps)
         monitor_ps ;;
     monitor)
         monitor_start ;;
-    stop) 
+    stop)
         monitor_stop ;;
     dump)
         memory_dump;;
