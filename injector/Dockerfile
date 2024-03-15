@@ -1,14 +1,17 @@
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 MAINTAINER Pantheon Systems
 
-RUN apt-get update -y --fix-missing
+RUN apt-get update -y 
 RUN apt-get install redis-server -y
 
 RUN apt-get install -y \
     build-essential \
     python \
     python-dev \
-    python-pip \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
     && apt-get autoremove -y \
     && apt-get clean
 

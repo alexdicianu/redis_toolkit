@@ -1,17 +1,22 @@
 # Redis Toolkit
+
 Toolkit for actively monitoring, analyzing and reporting your Redis database.
+
+> **Warning**  
+> **Monitoring will make Redis very slow**  
+> Every `monitor` client running on a Redis container reduces performance by as much as 50%  
+> See [Costs of Running Monitor](https://redis.io/commands/monitor/#cost-of-running-monitor)
 
 The toolkit has 2 types of reporting:
 * *hit rate* - actively monitors a redis database using the `redis-cli monitor` command (https://redis.io/commands/monitor), stores the commands Redis is running locally and then generates a report.
 * *memory* - dumps the contents of the Redis database locally and analyzes the memory distribution per key.
 
 ## Installation
-A valid docker install is required. 
+A valid Docker install is required. 
 
-Clone this repository, go to the clonned directory and run the commands below. The output should be displayed on screen.
+Clone this repository, go to the cloned directory and run the command below. The output should be displayed on screen.
 
 ```
-$ chmod +x ./redis-toolkit
 $ ./redis-toolkit install
 ```
 
@@ -34,6 +39,16 @@ $ ./redis-toolkit monitor
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
+> **Stop the monitor** When you're done, you must stop the monitoring process via the command below.
+```
+$ ./redis-toolkit stop
+[1] Stop the injection service and keep the local database for reporting purposes.
+[2] Stop the injection service and the local database. This will delete the collected data. Please make sure you have generated the report before you choose this option.
+Please choose enter your choice [1|2]: 1
+Shutting down redis_toolkit_injector container.
+redis_toolkit_injector
+```
+
 Once you get enough data, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/app/data/NAME.hitrate.gob`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
@@ -49,8 +64,13 @@ $ ./redis-toolkit report -name NAME -type hitrate -level 2
 | wpseo:*                                |       12 |     24 |    22 |          52 |      0.07 |             273.25 |                 0.00 |
 | wp_userlogins:*                        |       75 |    673 |   534 |          55 |      0.12 |              68.32 |                 0.13 |
 ```
+NOTE: You can play with different levels like `-level 2`, `-level 3`, `-level 4`, or even `-level 5`. Additionally, you can play with `--prefix` option. 
+For example to filter `post_format_relationships:*` only, you can run the command:
+```
+./redis-toolkit report -name NAME -type hitrate --prefix="post_format_relationships:*"
+```
 
-When you're done, you can stop the the monitoring process via the command below.
+When you're done, you can stop the reporting process via the command below.
 
 ```
 $ ./redis-toolkit stop
@@ -65,7 +85,7 @@ $ ./redis-toolkit dump
 Please enter the redis-cli string for the Redis server you wish to monitor: redis-cli -h ... -p ...
 ```
 
-Once the dump is done. you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/app/data/NAME.memoy.gob`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
+Once the dump is done, you can run the report. You'll have to give it a name which will be used for storing the report locally in `report/app/data/NAME.memoy.gob`. This is useful in case you want to see it again at a later time or if you want to play with the various filtering options - you won't need to regenerate the report again.
 
 ```
 $ ./redis-toolkit report -type memory -name NAME
